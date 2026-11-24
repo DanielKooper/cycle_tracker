@@ -1,6 +1,6 @@
 # ══════════════════════════════════════════════════════════════
 #  main.py — Bloom 🌸
-#  WebApp + покупки Stars внутри приложения + команды бота + канал
+#  WebApp + покупки Stars + команды бота + канал + диагностика
 #  Railway Start Command: gunicorn -w 1 -b 0.0.0.0:$PORT main:app
 # ══════════════════════════════════════════════════════════════
 import os
@@ -10,18 +10,21 @@ import time
 import hashlib
 import threading
 import urllib.request
+import urllib.error
 import urllib.parse
 
 from flask import Flask, request, jsonify, send_from_directory, abort
 
-BOT_TOKEN   = os.environ.get("BOT_TOKEN", "")
-WEBAPP_URL  = os.environ.get("WEBAPP_URL", "")
+BOT_TOKEN   = os.environ.get("BOT_TOKEN", "").strip()
+WEBAPP_URL  = os.environ.get("WEBAPP_URL", "").strip()
 HOOK_SECRET = os.environ.get("WEBHOOK_SECRET", "bloom-hook")
-CHANNEL_URL = os.environ.get("CHANNEL_URL", "")
+CHANNEL_URL = os.environ.get("CHANNEL_URL", "").strip()
 DATA_DIR    = os.environ.get("DATA_DIR", ".")
 
 STORE_PATH = os.path.join(DATA_DIR, "purchases.json")
 PREFS_PATH = os.path.join(DATA_DIR, "prefs.json")
+
+LAST_ERROR = {"time": 0, "method": "", "description": ""}
 
 PACKS = {
     "analytics": {"emoji": "📊", "title": "Глубокая аналитика",
@@ -34,55 +37,29 @@ PACKS = {
                   "desc": "Все функции Bloom Plus сразу", "stars": 149},
 }
 
-LANGS = {
-    "ru": "Русский",
-    "en": "English",
-    "uk": "Українська",
-}
+LANGS = {"ru": "Русский", "en": "English", "uk": "Українська"}
 
 TEXT = {
     "ru": {
-        "start": (
-            "Привет! Я <b>Bloom</b> 🌸\n"
-            "Твой личный трекер цикла и заботы.\n\n"
-            "Всё хранится только на твоём устройстве.\n"
-            "Нажми кнопку ниже, чтобы открыть приложение 👇"
-        ),
-        "help": (
-            "🌸 <b>Команды Bloom</b>\n\n"
-            "/start — открыть приложение\n"
-            "/plus — дополнения за звёзды ⭐\n"
-            "/care — советы партнёру\n"
-            "/balance — баланс звёзд бота\n"
-            "/transactions — последние операции\n"
-            "/refund — возврат последней покупки\n"
-            "/language — язык бота\n"
-            "/privacy — приватность\n\n"
-            "Bloom не заменяет консультацию врача."
-        ),
-        "plus": (
-            "👑 <b>Bloom Plus</b>\n\n"
-            "Дополнения покупаются прямо в приложении за Telegram Stars ⭐\n"
-            "Нажми на нужный товар — счёт откроется поверх WebApp."
-        ),
-        "care": (
-            "💞 <b>Как поддержать партнёршу</b>\n\n"
-            "• Спроси: «Чем помочь?» вместо «Что случилось?»\n"
-            "• В менструацию — тепло, отдых, вкусное, меньше нагрузки.\n"
-            "• В фолликулярную фазу — свидания, идеи, активность.\n"
-            "• В овуляцию — романтика и важные разговоры.\n"
-            "• В лютеиновую фазу — терпение, еда, объятия, без споров.\n"
-            "• При задержке — не нагнетай, будь рядом и предложи помощь.\n\n"
-            "В приложении советы точнее: они зависят от фазы цикла."
-        ),
-        "privacy": (
-            "🔒 <b>Приватность Bloom</b>\n\n"
-            "• Записи цикла хранятся на устройстве пользователя.\n"
-            "• Партнёр получает только ту код-ссылку, которую отправили вручную.\n"
-            "• В код-ссылке нет заметок и симптомов, только снимок цикла.\n"
-            "• Покупки привязаны к Telegram-аккаунту.\n\n"
-            "Bloom — справочный трекер, не медицинский сервис."
-        ),
+        "start": ("Привет! Я <b>Bloom</b> 🌸\nТвой личный трекер цикла и заботы.\n\n"
+                  "Всё хранится только на твоём устройстве.\nНажми кнопку ниже, чтобы открыть приложение 👇"),
+        "help": ("🌸 <b>Команды Bloom</b>\n\n/start — открыть приложение\n/plus — дополнения за звёзды ⭐\n"
+                 "/care — советы партнёру\n/balance — баланс звёзд бота\n/transactions — последние операции\n"
+                 "/refund — возврат последней покупки\n/language — язык бота\n/privacy — приватность\n\n"
+                 "Bloom не заменяет консультацию врача."),
+        "plus": ("👑 <b>Bloom Plus</b>\n\nДополнения покупаются прямо в приложении за Telegram Stars ⭐\n"
+                 "Нажми на нужный товар — счёт откроется поверх WebApp."),
+        "care": ("💞 <b>Как поддержать партнёршу</b>\n\n• Спроси: «Чем помочь?» вместо «Что случилось?»\n"
+                 "• В менструацию — тепло, отдых, вкусное, меньше нагрузки.\n"
+                 "• В фолликулярную фазу — свидания, идеи, активность.\n"
+                 "• В овуляцию — романтика и важные разговоры.\n"
+                 "• В лютеиновую фазу — терпение, еда, объятия, без споров.\n"
+                 "• При задержке — не нагнетай, будь рядом и предложи помощь.\n\n"
+                 "В приложении советы точнее: они зависят от фазы цикла."),
+        "privacy": ("🔒 <b>Приватность Bloom</b>\n\n• Записи цикла хранятся на устройстве пользователя.\n"
+                    "• Партнёр получает только ту код-ссылку, которую отправили вручную.\n"
+                    "• В код-ссылке нет заметок и симптомов, только снимок цикла.\n"
+                    "• Покупки привязаны к Telegram-аккаунту.\n\nBloom — справочный трекер, не медицинский сервис."),
         "language": "Выбери язык бота:",
         "lang_set": "Язык изменён 🌸",
         "balance_empty": "Пока нет звёзд на балансе 🤍",
@@ -100,47 +77,22 @@ TEXT = {
         "unknown": "Я пока не знаю такой команды 🤍 Напиши /help",
     },
     "en": {
-        "start": (
-            "Hi! I'm <b>Bloom</b> 🌸\n"
-            "Your personal cycle and care tracker.\n\n"
-            "Everything stays on your device.\n"
-            "Tap below to open the app 👇"
-        ),
-        "help": (
-            "🌸 <b>Bloom commands</b>\n\n"
-            "/start — open the app\n"
-            "/plus — optional Star upgrades ⭐\n"
-            "/care — partner support tips\n"
-            "/balance — bot Stars balance\n"
-            "/transactions — recent transactions\n"
-            "/refund — refund last purchase\n"
-            "/language — bot language\n"
-            "/privacy — privacy\n\n"
-            "Bloom is not a substitute for medical advice."
-        ),
-        "plus": (
-            "👑 <b>Bloom Plus</b>\n\n"
-            "Optional upgrades are purchased inside the app with Telegram Stars ⭐\n"
-            "Tap a product — the invoice opens right over the WebApp."
-        ),
-        "care": (
-            "💞 <b>How to support your partner</b>\n\n"
-            "• Ask \"How can I help?\" instead of \"What happened?\"\n"
-            "• During period: warmth, rest, treats, less load.\n"
-            "• Follicular phase: dates, ideas, activity.\n"
-            "• Ovulation: romance and important talks.\n"
-            "• Luteal phase: patience, food, hugs, no arguments.\n"
-            "• If late: don't panic, stay close, offer help.\n\n"
-            "The app gives more precise phase-based tips."
-        ),
-        "privacy": (
-            "🔒 <b>Bloom privacy</b>\n\n"
-            "• Cycle logs stay on the user's device.\n"
-            "• A partner only gets the share-link you send manually.\n"
-            "• The share-link contains a cycle snapshot, not notes or symptoms.\n"
-            "• Purchases are tied to the Telegram account.\n\n"
-            "Bloom is a reference tracker, not a medical service."
-        ),
+        "start": ("Hi! I'm <b>Bloom</b> 🌸\nYour personal cycle and care tracker.\n\n"
+                  "Everything stays on your device.\nTap below to open the app 👇"),
+        "help": ("🌸 <b>Bloom commands</b>\n\n/start — open the app\n/plus — optional Star upgrades ⭐\n"
+                 "/care — partner support tips\n/balance — bot Stars balance\n/transactions — recent transactions\n"
+                 "/refund — refund last purchase\n/language — bot language\n/privacy — privacy\n\n"
+                 "Bloom is not a substitute for medical advice."),
+        "plus": ("👑 <b>Bloom Plus</b>\n\nOptional upgrades are purchased inside the app with Telegram Stars ⭐\n"
+                 "Tap a product — the invoice opens right over the WebApp."),
+        "care": ("💞 <b>How to support your partner</b>\n\n• Ask \"How can I help?\" instead of \"What happened?\"\n"
+                 "• During period: warmth, rest, treats, less load.\n• Follicular phase: dates, ideas, activity.\n"
+                 "• Ovulation: romance and important talks.\n• Luteal phase: patience, food, hugs, no arguments.\n"
+                 "• If late: don't panic, stay close, offer help.\n\nThe app gives more precise phase-based tips."),
+        "privacy": ("🔒 <b>Bloom privacy</b>\n\n• Cycle logs stay on the user's device.\n"
+                    "• A partner only gets the share-link you send manually.\n"
+                    "• The share-link contains a cycle snapshot, not notes or symptoms.\n"
+                    "• Purchases are tied to the Telegram account.\n\nBloom is a reference tracker, not a medical service."),
         "language": "Choose bot language:",
         "lang_set": "Language updated 🌸",
         "balance_empty": "No Stars yet 🤍",
@@ -158,47 +110,25 @@ TEXT = {
         "unknown": "I don't know that command yet 🤍 Try /help",
     },
     "uk": {
-        "start": (
-            "Привіт! Я <b>Bloom</b> 🌸\n"
-            "Твій особистий трекер циклу та турботи.\n\n"
-            "Усе зберігається лише на твоєму пристрої.\n"
-            "Натисни кнопку нижче, щоб відкрити застосунок 👇"
-        ),
-        "help": (
-            "🌸 <b>Команди Bloom</b>\n\n"
-            "/start — відкрити застосунок\n"
-            "/plus — доповнення за зірки ⭐\n"
-            "/care — поради партнеру\n"
-            "/balance — баланс зірок бота\n"
-            "/transactions — останні операції\n"
-            "/refund — повернення останньої покупки\n"
-            "/language — мова бота\n"
-            "/privacy — приватність\n\n"
-            "Bloom не замінює консультацію лікаря."
-        ),
-        "plus": (
-            "👑 <b>Bloom Plus</b>\n\n"
-            "Доповнення купуються прямо в застосунку за Telegram Stars ⭐\n"
-            "Натисни на потрібний товар — рахунок відкриється поверх WebApp."
-        ),
-        "care": (
-            "💞 <b>Як підтримати партнерку</b>\n\n"
-            "• Запитай: «Чим допомогти?» замість «Що сталося?»\n"
-            "• Під час менструації — тепло, відпочинок, смачне, менше навантаження.\n"
-            "• У фолікулярну фазу — побачення, ідеї, активність.\n"
-            "• В овуляцію — романтика й важливі розмови.\n"
-            "• У лютеїнову фазу — терпіння, їжа, обійми, без суперечок.\n"
-            "• При затримці — не нагнітай, будь поруч і запропонуй допомогу.\n\n"
-            "У застосунку поради точніші: вони залежать від фази циклу."
-        ),
-        "privacy": (
-            "🔒 <b>Приватність Bloom</b>\n\n"
-            "• Записи циклу зберігаються на пристрої користувача.\n"
-            "• Партнер отримує лише те посилання-код, яке надіслали вручну.\n"
-            "• У посиланні-коді немає нотаток і симптомів, лише знімок циклу.\n"
-            "• Покупки прив'язані до Telegram-акаунта.\n\n"
-            "Bloom — довідковий трекер, не медичний сервіс."
-        ),
+        "start": ("Привіт! Я <b>Bloom</b> 🌸\nТвій особистий трекер циклу та турботи.\n\n"
+                  "Усе зберігається лише на твоєму пристрої.\nНатисни кнопку нижче, щоб відкрити застосунок 👇"),
+        "help": ("🌸 <b>Команди Bloom</b>\n\n/start — відкрити застосунок\n/plus — доповнення за зірки ⭐\n"
+                 "/care — поради партнеру\n/balance — баланс зірок бота\n/transactions — останні операції\n"
+                 "/refund — повернення останньої покупки\n/language — мова бота\n/privacy — приватність\n\n"
+                 "Bloom не замінює консультацію лікаря."),
+        "plus": ("👑 <b>Bloom Plus</b>\n\nДоповнення купуються прямо в застосунку за Telegram Stars ⭐\n"
+                 "Натисни на потрібний товар — рахунок відкриється поверх WebApp."),
+        "care": ("💞 <b>Як підтримати партнерку</b>\n\n• Запитай: «Чим допомогти?» замість «Що сталося?»\n"
+                 "• Під час менструації — тепло, відпочинок, смачне, менше навантаження.\n"
+                 "• У фолікулярну фазу — побачення, ідеї, активність.\n"
+                 "• В овуляцію — романтика й важливі розмови.\n"
+                 "• У лютеїнову фазу — терпіння, їжа, обійми, без суперечок.\n"
+                 "• При затримці — не нагнітай, будь поруч і запропонуй допомогу.\n\n"
+                 "У застосунку поради точніші: вони залежать від фази циклу."),
+        "privacy": ("🔒 <b>Приватність Bloom</b>\n\n• Записи циклу зберігаються на пристрої користувача.\n"
+                    "• Партнер отримує лише те посилання-код, яке надіслали вручну.\n"
+                    "• У посиланні-коді немає нотаток і симптомів, лише знімок циклу.\n"
+                    "• Покупки прив'язані до Telegram-акаунта.\n\nBloom — довідковий трекер, не медичний сервіс."),
         "language": "Обери мову бота:",
         "lang_set": "Мову змінено 🌸",
         "balance_empty": "Поки немає зірок на балансі 🤍",
@@ -243,8 +173,25 @@ def tg(method, payload=None):
         data=json.dumps(payload or {}).encode(),
         headers={"Content-Type": "application/json"},
     )
-    with urllib.request.urlopen(req, timeout=25) as r:
-        return json.loads(r.read())
+    try:
+        with urllib.request.urlopen(req, timeout=25) as r:
+            return json.loads(r.read())
+    except urllib.error.HTTPError as e:
+        try:
+            body = json.loads(e.read())
+        except Exception:
+            body = {"ok": False, "description": str(e)}
+        LAST_ERROR["time"] = int(time.time())
+        LAST_ERROR["method"] = method
+        LAST_ERROR["description"] = body.get("description", str(e))
+        app.logger.error("TG %s failed: %s", method, LAST_ERROR["description"])
+        return body
+    except Exception as e:
+        LAST_ERROR["time"] = int(time.time())
+        LAST_ERROR["method"] = method
+        LAST_ERROR["description"] = str(e)
+        app.logger.error("TG %s failed: %s", method, e)
+        return {"ok": False, "description": str(e)}
 
 
 def verify(init_data):
@@ -297,8 +244,10 @@ def open_kb(uid):
         [{"text": tr(uid, "open"), "web_app": {"url": app_url_from_request()}}],
         [{"text": tr(uid, "plus_btn"), "callback_data": "plus_menu"}],
     ]
-    if CHANNEL_URL:
+    if CHANNEL_URL.startswith("https://t.me/") or CHANNEL_URL.startswith("https://telegram.me/"):
         rows.append([{"text": tr(uid, "channel_btn"), "url": CHANNEL_URL}])
+    elif CHANNEL_URL:
+        app.logger.error("CHANNEL_URL invalid, skipped: %s", CHANNEL_URL)
     return {"inline_keyboard": rows}
 
 
@@ -324,20 +273,16 @@ def api_invoice():
     pack = PACKS.get(key)
     if not pack:
         return jsonify(ok=False, error="pack"), 400
-    try:
-        res = tg("createInvoiceLink", {
-            "title": "Bloom Plus · " + pack["title"],
-            "description": pack["desc"],
-            "payload": json.dumps({"p": key, "u": user["id"]}, separators=(",", ":")),
-            "provider_token": "",
-            "currency": "XTR",
-            "prices": [{"label": pack["title"], "amount": pack["stars"]}],
-        })
-    except Exception as e:
-        app.logger.error("createInvoiceLink: %s", e)
-        return jsonify(ok=False, error="telegram"), 502
+    res = tg("createInvoiceLink", {
+        "title": "Bloom Plus · " + pack["title"],
+        "description": pack["desc"],
+        "payload": json.dumps({"p": key, "u": user["id"]}, separators=(",", ":")),
+        "provider_token": "",
+        "currency": "XTR",
+        "prices": [{"label": pack["title"], "amount": pack["stars"]}],
+    })
     if not res.get("ok"):
-        return jsonify(ok=False, error="telegram"), 502
+        return jsonify(ok=False, error="telegram", detail=res.get("description")), 502
     return jsonify(ok=True, link=res["result"], stars=pack["stars"])
 
 
@@ -357,6 +302,11 @@ def api_config():
     return jsonify(ok=True, channel=CHANNEL_URL)
 
 
+@app.get("/api/lasterror")
+def api_lasterror():
+    return jsonify(ok=True, last_error=LAST_ERROR)
+
+
 @app.post("/api/telegram")
 def api_telegram():
     if request.headers.get("X-Telegram-Bot-Api-Secret-Token") != HOOK_SECRET:
@@ -373,7 +323,10 @@ def send(chat_id, text, reply_markup=None):
     payload = {"chat_id": chat_id, "text": text, "parse_mode": "HTML"}
     if reply_markup:
         payload["reply_markup"] = reply_markup
-    return tg("sendMessage", payload)
+    res = tg("sendMessage", payload)
+    if not res.get("ok"):
+        app.logger.error("sendMessage rejected: %s", res.get("description"))
+    return res
 
 
 def handle_update(u):
@@ -397,17 +350,13 @@ def handle_update(u):
         chat = q["message"]["chat"]["id"]
         data = q.get("data", "")
         tg("answerCallbackQuery", {"callback_query_id": q["id"]})
-
         if data == "plus_menu":
             send(chat, tr(uid, "plus"), open_kb(uid))
             return
-
         if data.startswith("lang_"):
-            lang = data.replace("lang_", "")
-            set_lang(uid, lang)
+            set_lang(uid, data.replace("lang_", ""))
             send(chat, tr(uid, "lang_set"), open_kb(uid))
             return
-
         return
 
     msg = u.get("message") or {}
@@ -423,95 +372,61 @@ def handle_update(u):
         buyer, key = str(data["u"]), data["p"]
         with _lock:
             store = _load(STORE_PATH)
-            store.setdefault(buyer, []).append({
-                "p": key,
-                "c": sp["telegram_payment_charge_id"],
-                "t": int(time.time()),
-            })
+            store.setdefault(buyer, []).append(
+                {"p": key, "c": sp["telegram_payment_charge_id"], "t": int(time.time())})
             _save(STORE_PATH, store)
         pack = PACKS.get(key, {})
         send(chat, tr(uid, "paid", emoji=pack.get("emoji", "👑"), title=pack.get("title", "Bloom Plus")))
         return
 
     if text.startswith("/start"):
-        send(chat, tr(uid, "start"), open_kb(uid))
-        return
-
+        send(chat, tr(uid, "start"), open_kb(uid)); return
     if text.startswith("/help"):
-        send(chat, tr(uid, "help"), open_kb(uid))
-        return
-
+        send(chat, tr(uid, "help"), open_kb(uid)); return
     if text.startswith("/plus"):
-        send(chat, tr(uid, "plus"), open_kb(uid))
-        return
-
+        send(chat, tr(uid, "plus"), open_kb(uid)); return
     if text.startswith("/care"):
-        send(chat, tr(uid, "care"), open_kb(uid))
-        return
-
+        send(chat, tr(uid, "care"), open_kb(uid)); return
     if text.startswith("/privacy"):
-        send(chat, tr(uid, "privacy"), open_kb(uid))
-        return
-
+        send(chat, tr(uid, "privacy"), open_kb(uid)); return
     if text.startswith("/language"):
         kb = {"inline_keyboard": [[{"text": name, "callback_data": "lang_" + code}] for code, name in LANGS.items()]}
-        send(chat, tr(uid, "language"), kb)
-        return
-
+        send(chat, tr(uid, "language"), kb); return
     if text.startswith("/balance"):
-        try:
-            res = tg("getMyStarBalance")
+        res = tg("getMyStarBalance")
+        if res.get("ok"):
             amount = res.get("result", {}).get("amount", 0)
-            if amount:
-                send(chat, tr(uid, "balance", amount=amount))
-            else:
-                send(chat, tr(uid, "balance_empty"))
-        except Exception:
+            send(chat, tr(uid, "balance", amount=amount) if amount else tr(uid, "balance_empty"))
+        else:
             send(chat, tr(uid, "balance_err"))
         return
-
     if text.startswith("/transactions"):
-        try:
-            res = tg("getStarTransactions", {"offset": 0, "limit": 5})
-            items = res.get("result", {}).get("transactions", [])
-            if not items:
-                send(chat, tr(uid, "transactions_empty"))
-                return
-            lines = ["🧾 <b>Recent transactions</b>\n"]
-            for t in items:
-                amount = t.get("amount", "?")
-                date = t.get("date", 0)
-                day = time.strftime("%Y-%m-%d", time.gmtime(date)) if date else "?"
-                lines.append("• %s: <b>%s ⭐</b>" % (day, amount))
-            send(chat, "\n".join(lines))
-        except Exception:
-            send(chat, tr(uid, "transactions_err"))
-        return
-
+        res = tg("getStarTransactions", {"offset": 0, "limit": 5})
+        if not res.get("ok"):
+            send(chat, tr(uid, "transactions_err")); return
+        items = res.get("result", {}).get("transactions", [])
+        if not items:
+            send(chat, tr(uid, "transactions_empty")); return
+        lines = ["🧾 <b>Recent transactions</b>\n"]
+        for t in items:
+            date = t.get("date", 0)
+            day = time.strftime("%Y-%m-%d", time.gmtime(date)) if date else "?"
+            lines.append("• %s: <b>%s ⭐</b>" % (day, t.get("amount", "?")))
+        send(chat, "\n".join(lines)); return
     if text.startswith("/refund"):
         buyer = str(uid)
         with _lock:
             store = _load(STORE_PATH)
             items = store.get(buyer) or []
             if not items:
-                send(chat, tr(uid, "refund_none"))
-                return
+                send(chat, tr(uid, "refund_none")); return
             last = items[-1]
-            try:
-                res = tg("refundStarPayment", {
-                    "user_id": int(buyer),
-                    "telegram_payment_charge_id": last["c"],
-                })
-                if not res.get("ok"):
-                    raise RuntimeError(res)
-            except Exception:
-                send(chat, tr(uid, "refund_err"))
-                return
+            res = tg("refundStarPayment", {"user_id": int(buyer), "telegram_payment_charge_id": last["c"]})
+            if not res.get("ok"):
+                send(chat, tr(uid, "refund_err")); return
             items.pop()
             _save(STORE_PATH, store)
-        send(chat, tr(uid, "refund_ok"))
-        return
-
+        send(chat, tr(uid, "refund_ok")); return
     if text:
         send(chat, tr(uid, "unknown"), open_kb(uid))
 
