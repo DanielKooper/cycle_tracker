@@ -17,6 +17,7 @@ from flask import Flask, request, jsonify, send_from_directory, abort
 BOT_TOKEN   = os.environ.get("BOT_TOKEN", "")
 WEBAPP_URL  = os.environ.get("WEBAPP_URL", "")
 HOOK_SECRET = os.environ.get("WEBHOOK_SECRET", "bloom-hook")
+CHANNEL_URL = os.environ.get("CHANNEL_URL", "")
 DATA_DIR    = os.environ.get("DATA_DIR", ".")
 
 STORE_PATH = os.path.join(DATA_DIR, "purchases.json")
