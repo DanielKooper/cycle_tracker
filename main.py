@@ -1,6 +1,7 @@
 # ══════════════════════════════════════════════════════════════
-#  main.py — Bloom 🌸  сервер: WebApp + покупки Stars внутри приложения
-#  Railway Start Command:  gunicorn -w 1 -b 0.0.0.0:$PORT main:app
+#  main.py — Bloom 🌸
+#  WebApp + покупки Stars внутри приложения + команды бота
+#  Railway Start Command: gunicorn -w 1 -b 0.0.0.0:$PORT main:app
 # ══════════════════════════════════════════════════════════════
 import os
 import json
@@ -17,7 +18,9 @@ BOT_TOKEN   = os.environ.get("BOT_TOKEN", "")
 WEBAPP_URL  = os.environ.get("WEBAPP_URL", "")
 HOOK_SECRET = os.environ.get("WEBHOOK_SECRET", "bloom-hook")
 DATA_DIR    = os.environ.get("DATA_DIR", ".")
-STORE_PATH  = os.path.join(DATA_DIR, "purchases.json")
+
+STORE_PATH = os.path.join(DATA_DIR, "purchases.json")
+PREFS_PATH = os.path.join(DATA_DIR, "prefs.json")
 
 PACKS = {
     "analytics": {"emoji": "📊", "title": "Глубокая аналитика",
@@ -30,39 +33,216 @@ PACKS = {
                   "desc": "Все функции Bloom Plus сразу", "stars": 149},
 }
 
+LANGS = {
+    "ru": "Русский",
+    "en": "English",
+    "uk": "Українська",
+}
+
+TEXT = {
+    "ru": {
+        "start": (
+            "Привет! Я <b>Bloom</b> 🌸\n"
+            "Твой личный трекер цикла и заботы.\n\n"
+            "Всё хранится только на твоём устройстве.\n"
+            "Нажми кнопку ниже, чтобы открыть приложение 👇"
+        ),
+        "help": (
+            "🌸 <b>Команды Bloom</b>\n\n"
+            "/start — открыть приложение\n"
+            "/plus — дополнения за звёзды ⭐\n"
+            "/care — советы партнёру\n"
+            "/balance — баланс звёзд бота\n"
+            "/transactions — последние операции\n"
+            "/refund — возврат последней покупки\n"
+            "/language — язык бота\n"
+            "/privacy — приватность\n\n"
+            "Bloom не заменяет консультацию врача."
+        ),
+        "plus": (
+            "👑 <b>Bloom Plus</b>\n\n"
+            "Дополнения покупаются прямо в приложении за Telegram Stars ⭐\n"
+            "Нажми на нужный товар — счёт откроется поверх WebApp."
+        ),
+        "care": (
+            "💞 <b>Как поддержать партнёршу</b>\n\n"
+            "• Спроси: «Чем помочь?» вместо «Что случилось?»\n"
+            "• В менструацию — тепло, отдых, вкусное, меньше нагрузки.\n"
+            "• В фолликулярную фазу — свидания, идеи, активность.\n"
+            "• В овуляцию — романтика и важные разговоры.\n"
+            "• В лютеиновую фазу — терпение, еда, объятия, без споров.\n"
+            "• При задержке — не нагнетай, будь рядом и предложи помощь.\n\n"
+            "В приложении советы точнее: они зависят от фазы цикла."
+        ),
+        "privacy": (
+            "🔒 <b>Приватность Bloom</b>\n\n"
+            "• Записи цикла хранятся на устройстве пользователя.\n"
+            "• Партнёр получает только ту код-ссылку, которую отправили вручную.\n"
+            "• В код-ссылке нет заметок и симптомов, только снимок цикла.\n"
+            "• Покупки привязаны к Telegram-аккаунту.\n\n"
+            "Bloom — справочный трекер, не медицинский сервис."
+        ),
+        "language": "Выбери язык бота:",
+        "lang_set": "Язык изменён 🌸",
+        "balance_empty": "Пока нет звёзд на балансе 🤍",
+        "balance": "⭐ Баланс бота: <b>{amount}</b> Stars",
+        "balance_err": "Не удалось получить баланс 😔 Возможно, метод ещё недоступен для этого бота.",
+        "transactions_empty": "Операций пока нет 🤍",
+        "transactions_err": "Не удалось получить операции 😔",
+        "refund_none": "У тебя нет покупок для возврата 🤍",
+        "refund_ok": "✅ Возврат оформлен — звёзды вернулись на баланс ⭐",
+        "refund_err": "Не удалось оформить возврат 😔 Попробуй позже.",
+        "paid": "✅ <b>Оплата получена!</b> Спасибо 💗\n\n{emoji} <b>{title}</b> уже открыт в приложении — вернись в Bloom и пользуйся 👑",
+        "open": "🌸 Открыть Bloom",
+        "plus_btn": "👑 Bloom Plus · за ⭐",
+        "unknown": "Я пока не знаю такой команды 🤍 Напиши /help",
+    },
+    "en": {
+        "start": (
+            "Hi! I’m <b>Bloom</b> 🌸\n"
+            "Your personal cycle and care tracker.\n\n"
+            "Everything stays on your device.\n"
+            "Tap below to open the app 👇"
+        ),
+        "help": (
+            "🌸 <b>Bloom commands</b>\n\n"
+            "/start — open the app\n"
+            "/plus — optional Star upgrades ⭐\n"
+            "/care — partner support tips\n"
+            "/balance — bot Stars balance\n"
+            "/transactions — recent transactions\n"
+            "/refund — refund last purchase\n"
+            "/language — bot language\n"
+            "/privacy — privacy\n\n"
+            "Bloom is not a substitute for medical advice."
+        ),
+        "plus": (
+            "👑 <b>Bloom Plus</b>\n\n"
+            "Optional upgrades are purchased inside the app with Telegram Stars ⭐\n"
+            "Tap a product — the invoice opens right over the WebApp."
+        ),
+        "care": (
+            "💞 <b>How to support your partner</b>\n\n"
+            "• Ask “How can I help?” instead of “What happened?”\n"
+            "• During period: warmth, rest, treats, less load.\n"
+            "• Follicular phase: dates, ideas, activity.\n"
+            "• Ovulation: romance and important talks.\n"
+            "• Luteal phase: patience, food, hugs, no arguments.\n"
+            "• If late: don’t panic, stay close, offer help.\n\n"
+            "The app gives more precise phase-based tips."
+        ),
+        "privacy": (
+            "🔒 <b>Bloom privacy</b>\n\n"
+            "• Cycle logs stay on the user’s device.\n"
+            "• A partner only gets the share-link you send manually.\n"
+            "• The share-link contains a cycle snapshot, not notes or symptoms.\n"
+            "• Purchases are tied to the Telegram account.\n\n"
+            "Bloom is a reference tracker, not a medical service."
+        ),
+        "language": "Choose bot language:",
+        "lang_set": "Language updated 🌸",
+        "balance_empty": "No Stars yet 🤍",
+        "balance": "⭐ Bot balance: <b>{amount}</b> Stars",
+        "balance_err": "Couldn’t fetch balance 😔 The method may not be available for this bot yet.",
+        "transactions_empty": "No transactions yet 🤍",
+        "transactions_err": "Couldn’t fetch transactions 😔",
+        "refund_none": "No purchases to refund 🤍",
+        "refund_ok": "✅ Refund completed — Stars are back ⭐",
+        "refund_err": "Couldn’t process refund 😔 Try later.",
+        "paid": "✅ <b>Payment received!</b> Thank you 💗\n\n{emoji} <b>{title}</b> is unlocked in the app — return to Bloom 👑",
+        "open": "🌸 Open Bloom",
+        "plus_btn": "👑 Bloom Plus · Stars ⭐",
+        "unknown": "I don’t know that command yet 🤍 Try /help",
+    },
+    "uk": {
+        "start": (
+            "Привіт! Я <b>Bloom</b> 🌸\n"
+            "Твій особистий трекер циклу та турботи.\n\n"
+            "Усе зберігається лише на твоєму пристрої.\n"
+            "Натисни кнопку нижче, щоб відкрити застосунок 👇"
+        ),
+        "help": (
+            "🌸 <b>Команди Bloom</b>\n\n"
+            "/start — відкрити застосунок\n"
+            "/plus — доповнення за зірки ⭐\n"
+            "/care — поради партнеру\n"
+            "/balance — баланс зірок бота\n"
+            "/transactions — останні операції\n"
+            "/refund — повернення останньої покупки\n"
+            "/language — мова бота\n"
+            "/privacy — приватність\n\n"
+            "Bloom не замінює консультацію лікаря."
+        ),
+        "plus": (
+            "👑 <b>Bloom Plus</b>\n\n"
+            "Доповнення купуються прямо в застосунку за Telegram Stars ⭐\n"
+            "Натисни на потрібний товар — рахунок відкриється поверх WebApp."
+        ),
+        "care": (
+            "💞 <b>Як підтримати партнерку</b>\n\n"
+            "• Запитай: «Чим допомогти?» замість «Що сталося?»\n"
+            "• Під час менструації — тепло, відпочинок, смачне, менше навантаження.\n"
+            "• У фолікулярну фазу — побачення, ідеї, активність.\n"
+            "• В овуляцію — романтика й важливі розмови.\n"
+            "• У лютеїнову фазу — терпіння, їжа, обійми, без суперечок.\n"
+            "• При затримці — не нагнітай, будь поруч і запропонуй допомогу.\n\n"
+            "У застосунку поради точніші: вони залежать від фази циклу."
+        ),
+        "privacy": (
+            "🔒 <b>Приватність Bloom</b>\n\n"
+            "• Записи циклу зберігаються на пристрої користувача.\n"
+            "• Партнер отримує лише те посилання-код, яке надіслали вручну.\n"
+            "• У посиланні-коді немає нотаток і симптомів, лише знімок циклу.\n"
+            "• Покупки прив’язані до Telegram-акаунта.\n\n"
+            "Bloom — довідковий трекер, не медичний сервіс."
+        ),
+        "language": "Обери мову бота:",
+        "lang_set": "Мову змінено 🌸",
+        "balance_empty": "Поки немає зірок на балансі 🤍",
+        "balance": "⭐ Баланс бота: <b>{amount}</b> Stars",
+        "balance_err": "Не вдалося отримати баланс 😔 Можливо, метод ще недоступний для цього бота.",
+        "transactions_empty": "Операцій поки немає 🤍",
+        "transactions_err": "Не вдалося отримати операції 😔",
+        "refund_none": "У тебе немає покупок для повернення 🤍",
+        "refund_ok": "✅ Повернення оформлено — зірки повернулися на баланс ⭐",
+        "refund_err": "Не вдалося оформити повернення 😔 Спробуй пізніше.",
+        "paid": "✅ <b>Оплату отримано!</b> Дякую 💗\n\n{emoji} <b>{title}</b> уже відкрито в застосунку — повернися в Bloom 👑",
+        "open": "🌸 Відкрити Bloom",
+        "plus_btn": "👑 Bloom Plus · за ⭐",
+        "unknown": "Я поки не знаю такої команди 🤍 Напиши /help",
+    },
+}
+
 app = Flask(__name__, static_folder="webapp", static_url_path="")
 _lock = threading.Lock()
 
 
-# ── хранилище покупок ──
-def _load():
+def _load(path):
     try:
-        with open(STORE_PATH, encoding="utf-8") as f:
+        with open(path, encoding="utf-8") as f:
             return json.load(f)
     except Exception:
         return {}
 
 
-def _save(d):
+def _save(path, data):
     os.makedirs(DATA_DIR, exist_ok=True)
-    tmp = STORE_PATH + ".tmp"
+    tmp = path + ".tmp"
     with open(tmp, "w", encoding="utf-8") as f:
-        json.dump(d, f, ensure_ascii=False)
-    os.replace(tmp, STORE_PATH)
+        json.dump(data, f, ensure_ascii=False)
+    os.replace(tmp, path)
 
 
-# ── Bot API ──
-def tg(method, payload):
+def tg(method, payload=None):
     req = urllib.request.Request(
         "https://api.telegram.org/bot%s/%s" % (BOT_TOKEN, method),
-        data=json.dumps(payload).encode(),
+        data=json.dumps(payload or {}).encode(),
         headers={"Content-Type": "application/json"},
     )
     with urllib.request.urlopen(req, timeout=25) as r:
         return json.loads(r.read())
 
 
-# ── проверка подписи Telegram WebApp initData ──
 def verify(init_data):
     if not init_data or not BOT_TOKEN:
         return None
@@ -81,7 +261,42 @@ def verify(init_data):
         return None
 
 
-# ── статика WebApp ──
+def get_lang(uid):
+    prefs = _load(PREFS_PATH)
+    return prefs.get(str(uid), "ru")
+
+
+def set_lang(uid, lang):
+    if lang not in LANGS:
+        return
+    with _lock:
+        prefs = _load(PREFS_PATH)
+        prefs[str(uid)] = lang
+        _save(PREFS_PATH, prefs)
+
+
+def tr(uid, key, **kwargs):
+    lang = get_lang(uid)
+    text = TEXT.get(lang, TEXT["ru"]).get(key, TEXT["ru"].get(key, key))
+    return text.format(**kwargs) if kwargs else text
+
+
+def app_url_from_request():
+    if WEBAPP_URL:
+        return WEBAPP_URL.rstrip("/")
+    host = request.headers.get("X-Forwarded-Host") or request.host
+    return "https://" + host.rstrip("/")
+
+
+def open_kb(uid):
+    return {
+        "inline_keyboard": [
+            [{"text": tr(uid, "open"), "web_app": {"url": app_url_from_request()}}],
+            [{"text": tr(uid, "plus_btn"), "callback_data": "plus_menu"}],
+        ]
+    }
+
+
 @app.get("/")
 def index():
     return send_from_directory("webapp", "index.html")
@@ -94,7 +309,6 @@ def statics(p):
     return send_from_directory("webapp", p)
 
 
-# ── создание счёта для оплаты внутри WebApp ──
 @app.post("/api/invoice")
 def api_invoice():
     body = request.get_json(silent=True) or {}
@@ -122,19 +336,17 @@ def api_invoice():
     return jsonify(ok=True, link=res["result"], stars=pack["stars"])
 
 
-# ── купленные пакеты пользователя ──
 @app.get("/api/me")
 def api_me():
     user = verify(request.args.get("initData", ""))
     if not user:
         return jsonify(ok=False, error="auth"), 401
     with _lock:
-        store = _load()
+        store = _load(STORE_PATH)
     packs = sorted({i["p"] for i in store.get(str(user["id"]), [])})
-    return jsonify(ok=True, packs=packs)
+    return jsonify(ok=True, packs=packs, lang=get_lang(user["id"]))
 
 
-# ── вебхук Telegram: платежи и команды ──
 @app.post("/api/telegram")
 def api_telegram():
     if request.headers.get("X-Telegram-Bot-Api-Secret-Token") != HOOK_SECRET:
@@ -147,8 +359,14 @@ def api_telegram():
     return "ok"
 
 
+def send(chat_id, text, reply_markup=None):
+    payload = {"chat_id": chat_id, "text": text, "parse_mode": "HTML"}
+    if reply_markup:
+        payload["reply_markup"] = reply_markup
+    return tg("sendMessage", payload)
+
+
 def handle_update(u):
-    # 1. подтверждение платежа (нужно ответить быстро)
     if "pre_checkout_query" in u:
         q = u["pre_checkout_query"]
         ok = False
@@ -157,93 +375,135 @@ def handle_update(u):
         except Exception:
             ok = False
         tg("answerPreCheckoutQuery", {
-            "pre_checkout_query_id": q["id"], "ok": ok,
-            **({} if ok else {"error_message": "Неизвестный товар 🤔"}),
+            "pre_checkout_query_id": q["id"],
+            "ok": ok,
+            **({} if ok else {"error_message": "Unknown product 🤔"}),
         })
+        return
+
+    if "callback_query" in u:
+        q = u["callback_query"]
+        uid = q["from"]["id"]
+        chat = q["message"]["chat"]["id"]
+        data = q.get("data", "")
+        tg("answerCallbackQuery", {"callback_query_id": q["id"]})
+
+        if data == "plus_menu":
+            send(chat, tr(uid, "plus"), open_kb(uid))
+            return
+
+        if data.startswith("lang_"):
+            lang = data.replace("lang_", "")
+            set_lang(uid, lang)
+            send(chat, tr(uid, "lang_set"), open_kb(uid))
+            return
+
         return
 
     msg = u.get("message") or {}
     if not msg:
         return
     chat = msg["chat"]["id"]
+    uid = msg.get("from", {}).get("id", chat)
+    text = (msg.get("text") or "").strip()
 
-    # 2. успешная оплата
     if "successful_payment" in msg:
         sp = msg["successful_payment"]
         data = json.loads(sp["invoice_payload"])
-        uid, key = str(data["u"]), data["p"]
+        buyer, key = str(data["u"]), data["p"]
         with _lock:
-            store = _load()
-            store.setdefault(uid, []).append({
+            store = _load(STORE_PATH)
+            store.setdefault(buyer, []).append({
                 "p": key,
                 "c": sp["telegram_payment_charge_id"],
                 "t": int(time.time()),
             })
-            _save(store)
+            _save(STORE_PATH, store)
         pack = PACKS.get(key, {})
-        tg("sendMessage", {
-            "chat_id": chat,
-            "text": "✅ <b>Оплата получена!</b> Спасибо 💗\n\n"
-                    "%s <b>%s</b> уже открыт в приложении — вернись в Bloom и пользуйся 👑"
-                    % (pack.get("emoji", "👑"), pack.get("title", "Bloom Plus")),
-            "parse_mode": "HTML",
-        })
+        send(chat, tr(uid, "paid", emoji=pack.get("emoji", "👑"), title=pack.get("title", "Bloom Plus")))
         return
 
-    text = (msg.get("text") or "").strip()
+    if text.startswith("/start"):
+        send(chat, tr(uid, "start"), open_kb(uid))
+        return
 
-    # 3. возврат последней покупки
-    if text.startswith("/refund"):
-        uid = str(msg["from"]["id"])
-        with _lock:
-            store = _load()
-            items = store.get(uid) or []
+    if text.startswith("/help"):
+        send(chat, tr(uid, "help"), open_kb(uid))
+        return
+
+    if text.startswith("/plus"):
+        send(chat, tr(uid, "plus"), open_kb(uid))
+        return
+
+    if text.startswith("/care"):
+        send(chat, tr(uid, "care"), open_kb(uid))
+        return
+
+    if text.startswith("/privacy"):
+        send(chat, tr(uid, "privacy"), open_kb(uid))
+        return
+
+    if text.startswith("/language"):
+        kb = {"inline_keyboard": [[{"text": name, "callback_data": "lang_" + code}] for code, name in LANGS.items()]}
+        send(chat, tr(uid, "language"), kb)
+        return
+
+    if text.startswith("/balance"):
+        try:
+            res = tg("getMyStarBalance")
+            amount = res.get("result", {}).get("amount", 0)
+            if amount:
+                send(chat, tr(uid, "balance", amount=amount))
+            else:
+                send(chat, tr(uid, "balance_empty"))
+        except Exception:
+            send(chat, tr(uid, "balance_err"))
+        return
+
+    if text.startswith("/transactions"):
+        try:
+            res = tg("getStarTransactions", {"offset": 0, "limit": 5})
+            items = res.get("result", {}).get("transactions", [])
             if not items:
-                tg("sendMessage", {"chat_id": chat, "text": "У тебя нет покупок для возврата 🤍"})
+                send(chat, tr(uid, "transactions_empty"))
+                return
+            lines = ["🧾 <b>Recent transactions</b>\n"]
+            for t in items:
+                amount = t.get("amount", "?")
+                date = t.get("date", 0)
+                day = time.strftime("%Y-%m-%d", time.gmtime(date)) if date else "?"
+                lines.append(f"• {day}: <b>{amount} ⭐</b>")
+            send(chat, "\n".join(lines))
+        except Exception:
+            send(chat, tr(uid, "transactions_err"))
+        return
+
+    if text.startswith("/refund"):
+        buyer = str(uid)
+        with _lock:
+            store = _load(STORE_PATH)
+            items = store.get(buyer) or []
+            if not items:
+                send(chat, tr(uid, "refund_none"))
                 return
             last = items[-1]
             try:
                 res = tg("refundStarPayment", {
-                    "user_id": int(uid),
+                    "user_id": int(buyer),
                     "telegram_payment_charge_id": last["c"],
                 })
                 if not res.get("ok"):
                     raise RuntimeError(res)
             except Exception:
-                tg("sendMessage", {"chat_id": chat, "text": "Не удалось оформить возврат 😔 Попробуй позже."})
+                send(chat, tr(uid, "refund_err"))
                 return
             items.pop()
-            _save(store)
-        tg("sendMessage", {"chat_id": chat, "text": "✅ Возврат оформлен — звёзды вернулись на баланс ⭐"})
+            _save(STORE_PATH, store)
+        send(chat, tr(uid, "refund_ok"))
         return
 
-    # 4. каталог Plus
-    if text.startswith("/plus"):
-        lines = ["👑 <b>Bloom Plus</b> — дополнения за звёзды ⭐\n"]
-        for p in PACKS.values():
-            lines.append("%s <b>%s</b> — %s ⭐\n<i>%s</i>" % (p["emoji"], p["title"], p["stars"], p["desc"]))
-        lines.append("\nПокупка в один тап прямо в приложении 👇")
-        tg("sendMessage", {
-            "chat_id": chat, "text": "\n".join(lines), "parse_mode": "HTML",
-            "reply_markup": {"inline_keyboard": [[
-                {"text": "🌸 Открыть Bloom", "web_app": {"url": WEBAPP_URL}}]]},
-        })
-        return
-
-    # 5. старт
-    if text.startswith("/start"):
-        tg("sendMessage", {
-            "chat_id": chat,
-            "text": "Привет! Я <b>Bloom</b> 🌸\nТвой личный трекер цикла.\n\n"
-                    "Все данные хранятся только на твоём устройстве.\n"
-                    "Нажми кнопку ниже, чтобы открыть приложение 👇",
-            "parse_mode": "HTML",
-            "reply_markup": {"inline_keyboard": [
-                [{"text": "🌸 Открыть Bloom", "web_app": {"url": WEBAPP_URL}}],
-                [{"text": "👑 Bloom Plus · за ⭐", "callback_data": "noop"}],
-            ]},
-        })
-        return
+    if text:
+        send(chat, tr(uid, "unknown"), open_kb(uid))
 
 
 if __name__ == "__main__":
