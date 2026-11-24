@@ -37,6 +37,16 @@ PACKS = {
                   "desc": "Все функции Bloom Plus сразу", "stars": 149},
 }
 
+# Старые/альтернативные имена товаров → текущие ключи.
+# Спасает, если фронтенд из кэша шлёт прежние идентификаторы.
+PACK_ALIAS = {
+    "stats": "analytics", "premium_stats": "analytics",
+    "ai": "analytics", "premium_ai": "analytics",
+    "partners": "care", "premium_partners": "care",
+    "export": "pdf", "premium_export": "pdf",
+    "plus": "all", "premium_all": "all", "everything": "all",
+}
+
 LANGS = {"ru": "Русский", "en": "English", "uk": "Українська"}
 
 TEXT = {
@@ -288,16 +298,32 @@ def statics(p):
     return send_from_directory("webapp", p)
 
 
+@app.after_request
+def no_cache(resp):
+    p = request.path
+    if p == "/" or p.endswith(".html") or p.endswith(".js") or p.endswith(".css"):
+        resp.headers["Cache-Control"] = "no-store, no-cache, must-revalidate, max-age=0"
+        resp.headers["Pragma"] = "no-cache"
+    return resp
+
+
 @app.post("/api/invoice")
 def api_invoice():
     body = request.get_json(silent=True) or {}
     user = verify(body.get("initData", ""))
     if not user:
         return jsonify(ok=False, error="auth", detail=LAST_ERROR["description"]), 401
-    key = body.get("pack")
+
+    raw = str(body.get("pack") or "").strip()
+    key = PACK_ALIAS.get(raw, raw)
     pack = PACKS.get(key)
     if not pack:
-        return jsonify(ok=False, error="pack"), 400
+        known = ", ".join(sorted(PACKS))
+        app.logger.error("Unknown pack '%s' — server knows: %s", raw, known)
+        detail = ("Приложение прислало товар «%s», сервер знает только: %s. "
+                  "Закрой и открой приложение заново (сброс кэша)." % (raw or "пусто", known))
+        return jsonify(ok=False, error="pack", got=raw, have=sorted(PACKS), detail=detail), 400
+
     res = tg("createInvoiceLink", {
         "title": "Bloom Plus · " + pack["title"],
         "description": pack["desc"],
