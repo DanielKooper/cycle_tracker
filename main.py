@@ -1,6 +1,6 @@
 # ══════════════════════════════════════════════════════════════
 #  main.py — Bloom 🌸
-#  WebApp + покупки Stars внутри приложения + команды бота
+#  WebApp + покупки Stars внутри приложения + команды бота + канал
 #  Railway Start Command: gunicorn -w 1 -b 0.0.0.0:$PORT main:app
 # ══════════════════════════════════════════════════════════════
 import os
@@ -96,11 +96,12 @@ TEXT = {
         "paid": "✅ <b>Оплата получена!</b> Спасибо 💗\n\n{emoji} <b>{title}</b> уже открыт в приложении — вернись в Bloom и пользуйся 👑",
         "open": "🌸 Открыть Bloom",
         "plus_btn": "👑 Bloom Plus · за ⭐",
+        "channel_btn": "📣 Наш канал",
         "unknown": "Я пока не знаю такой команды 🤍 Напиши /help",
     },
     "en": {
         "start": (
-            "Hi! I’m <b>Bloom</b> 🌸\n"
+            "Hi! I'm <b>Bloom</b> 🌸\n"
             "Your personal cycle and care tracker.\n\n"
             "Everything stays on your device.\n"
             "Tap below to open the app 👇"
@@ -124,17 +125,17 @@ TEXT = {
         ),
         "care": (
             "💞 <b>How to support your partner</b>\n\n"
-            "• Ask “How can I help?” instead of “What happened?”\n"
+            "• Ask \"How can I help?\" instead of \"What happened?\"\n"
             "• During period: warmth, rest, treats, less load.\n"
             "• Follicular phase: dates, ideas, activity.\n"
             "• Ovulation: romance and important talks.\n"
             "• Luteal phase: patience, food, hugs, no arguments.\n"
-            "• If late: don’t panic, stay close, offer help.\n\n"
+            "• If late: don't panic, stay close, offer help.\n\n"
             "The app gives more precise phase-based tips."
         ),
         "privacy": (
             "🔒 <b>Bloom privacy</b>\n\n"
-            "• Cycle logs stay on the user’s device.\n"
+            "• Cycle logs stay on the user's device.\n"
             "• A partner only gets the share-link you send manually.\n"
             "• The share-link contains a cycle snapshot, not notes or symptoms.\n"
             "• Purchases are tied to the Telegram account.\n\n"
@@ -144,16 +145,17 @@ TEXT = {
         "lang_set": "Language updated 🌸",
         "balance_empty": "No Stars yet 🤍",
         "balance": "⭐ Bot balance: <b>{amount}</b> Stars",
-        "balance_err": "Couldn’t fetch balance 😔 The method may not be available for this bot yet.",
+        "balance_err": "Couldn't fetch balance 😔 The method may not be available for this bot yet.",
         "transactions_empty": "No transactions yet 🤍",
-        "transactions_err": "Couldn’t fetch transactions 😔",
+        "transactions_err": "Couldn't fetch transactions 😔",
         "refund_none": "No purchases to refund 🤍",
         "refund_ok": "✅ Refund completed — Stars are back ⭐",
-        "refund_err": "Couldn’t process refund 😔 Try later.",
+        "refund_err": "Couldn't process refund 😔 Try later.",
         "paid": "✅ <b>Payment received!</b> Thank you 💗\n\n{emoji} <b>{title}</b> is unlocked in the app — return to Bloom 👑",
         "open": "🌸 Open Bloom",
         "plus_btn": "👑 Bloom Plus · Stars ⭐",
-        "unknown": "I don’t know that command yet 🤍 Try /help",
+        "channel_btn": "📣 Our channel",
+        "unknown": "I don't know that command yet 🤍 Try /help",
     },
     "uk": {
         "start": (
@@ -194,7 +196,7 @@ TEXT = {
             "• Записи циклу зберігаються на пристрої користувача.\n"
             "• Партнер отримує лише те посилання-код, яке надіслали вручну.\n"
             "• У посиланні-коді немає нотаток і симптомів, лише знімок циклу.\n"
-            "• Покупки прив’язані до Telegram-акаунта.\n\n"
+            "• Покупки прив'язані до Telegram-акаунта.\n\n"
             "Bloom — довідковий трекер, не медичний сервіс."
         ),
         "language": "Обери мову бота:",
@@ -210,6 +212,7 @@ TEXT = {
         "paid": "✅ <b>Оплату отримано!</b> Дякую 💗\n\n{emoji} <b>{title}</b> уже відкрито в застосунку — повернися в Bloom 👑",
         "open": "🌸 Відкрити Bloom",
         "plus_btn": "👑 Bloom Plus · за ⭐",
+        "channel_btn": "📣 Наш канал",
         "unknown": "Я поки не знаю такої команди 🤍 Напиши /help",
     },
 }
@@ -295,11 +298,8 @@ def open_kb(uid):
         [{"text": tr(uid, "plus_btn"), "callback_data": "plus_menu"}],
     ]
     if CHANNEL_URL:
-        label = {"ru": "📣 Наш канал", "en": "📣 Our channel", "uk": "📣 Наш канал"}.get(get_lang(uid), "📣 Our channel")
-        rows.append([{"text": label, "url": CHANNEL_URL}])
+        rows.append([{"text": tr(uid, "channel_btn"), "url": CHANNEL_URL}])
     return {"inline_keyboard": rows}
-        ]
-    }
 
 
 @app.get("/")
@@ -351,9 +351,11 @@ def api_me():
     packs = sorted({i["p"] for i in store.get(str(user["id"]), [])})
     return jsonify(ok=True, packs=packs, lang=get_lang(user["id"]))
 
+
 @app.get("/api/config")
 def api_config():
     return jsonify(ok=True, channel=CHANNEL_URL)
+
 
 @app.post("/api/telegram")
 def api_telegram():
@@ -480,7 +482,7 @@ def handle_update(u):
                 amount = t.get("amount", "?")
                 date = t.get("date", 0)
                 day = time.strftime("%Y-%m-%d", time.gmtime(date)) if date else "?"
-                lines.append(f"• {day}: <b>{amount} ⭐</b>")
+                lines.append("• %s: <b>%s ⭐</b>" % (day, amount))
             send(chat, "\n".join(lines))
         except Exception:
             send(chat, tr(uid, "transactions_err"))
