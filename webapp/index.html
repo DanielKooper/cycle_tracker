@@ -1,169 +1,677 @@
 <!DOCTYPE html>
-<html lang="ru">
+<html lang="ru" data-theme="rose">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Cycle Tracker Premium</title>
-    <link rel="stylesheet" href="style.css">
-    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+<meta name="theme-color" content="#FFF6F4">
+<title>Bloom 🌸 — твой цикл</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;600;700;800&display=swap&subset=cyrillic" rel="stylesheet">
+<script src="https://telegram.org/js/telegram-web-app.js"></script>
+<style>
+:root{
+  --g1:#FF9EBB; --g2:#F5567B; --accent:#F5567B; --accent-soft:#FFE4EC; --accent-ink:#C2325B;
+  --bg:#FFF6F4; --card:#FFFFFF; --ink:#3B2A3E; --muted:#A08CA6; --track:#F6E7EE; --line:#F1E4EC;
+  --fer:#2EC4B6; --ovu:#8B5CF6; --shadow:0 10px 30px rgba(190,90,130,.12);
+}
+html[data-theme="lavender"]{--g1:#C3A8FF;--g2:#7C5CFC;--accent:#8B5CF6;--accent-soft:#EDE7FF;--accent-ink:#5F3DC4;--bg:#F7F5FF;--track:#ECE6FA;--line:#EAE3F8;--shadow:0 10px 30px rgba(120,90,220,.12)}
+html[data-theme="mint"]{--g1:#8FE7CB;--g2:#14B8A6;--accent:#14B8A6;--accent-soft:#DDF7EF;--accent-ink:#0F766E;--bg:#F3FBF8;--track:#E2F4EE;--line:#E0F1EB;--shadow:0 10px 30px rgba(20,150,130,.12)}
+html.dark{--bg:#151019;--card:#201A28;--ink:#F4EDF7;--muted:#9B8FA6;--track:#2C2436;--line:#2C2436;--accent-soft:#3A2433;--shadow:0 10px 30px rgba(0,0,0,.35)}
+html.dark[data-theme="lavender"]{--accent-soft:#2E2647}
+html.dark[data-theme="mint"]{--accent-soft:#1D3A34}
+*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+body{font-family:'Manrope',-apple-system,'Segoe UI',Roboto,sans-serif;background:var(--bg);color:var(--ink);min-height:100vh;transition:background .3s,color .3s;overflow-x:hidden}
+.blob{position:fixed;border-radius:50%;filter:blur(70px);opacity:.35;pointer-events:none;z-index:0}
+.blob.b1{width:300px;height:300px;background:var(--g1);top:-80px;right:-80px;animation:float 14s ease-in-out infinite alternate}
+.blob.b2{width:260px;height:260px;background:var(--g2);bottom:60px;left:-100px;opacity:.18;animation:float 18s ease-in-out infinite alternate-reverse}
+html.dark .blob{opacity:.12}
+@keyframes float{from{transform:translate(0,0) scale(1)}to{transform:translate(-30px,40px) scale(1.15)}}
+.wrap{position:relative;z-index:1;max-width:560px;margin:0 auto;padding:16px 16px calc(96px + env(safe-area-inset-bottom))}
+header{display:flex;align-items:center;justify-content:space-between;padding:6px 2px 14px}
+.logo{font-weight:800;font-size:22px;letter-spacing:-.5px}
+.logo em{font-style:normal;color:var(--accent)}
+.icon-btn{width:42px;height:42px;border-radius:14px;border:1px solid var(--line);background:var(--card);font-size:19px;cursor:pointer;box-shadow:var(--shadow);transition:transform .15s}
+.icon-btn:active{transform:scale(.92)}
+.card{background:var(--card);border:1px solid var(--line);border-radius:24px;padding:20px;box-shadow:var(--shadow);margin-bottom:14px;animation:pop .35s ease both}
+@keyframes pop{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
+.tab{display:none}.tab.on{display:block}
+.greet{font-size:14px;color:var(--muted);font-weight:600;margin-bottom:2px}
+h1.day-title{font-size:20px;font-weight:800;margin-bottom:14px}
+/* ── Кольцо ── */
+.ring-card{display:flex;flex-direction:column;align-items:center;text-align:center;padding:26px 20px}
+.ring-box{position:relative;width:250px;height:250px;cursor:pointer}
+.ring-box svg{transform:rotate(-90deg)}
+.ring-fg{transition:stroke-dashoffset 1s cubic-bezier(.22,1,.36,1)}
+.ring-center{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px}
+.rc-label{font-size:11px;font-weight:700;letter-spacing:2px;color:var(--muted);text-transform:uppercase}
+.rc-num{font-size:64px;font-weight:800;line-height:1;letter-spacing:-2px}
+.rc-sub{font-size:13px;font-weight:600;color:var(--muted)}
+.phase-chip{display:inline-flex;align-items:center;gap:7px;margin-top:16px;padding:9px 16px;border-radius:99px;background:var(--accent-soft);color:var(--accent-ink);font-weight:700;font-size:14px}
+.countdown{margin-top:10px;font-size:15px;font-weight:600;color:var(--muted)}
+.countdown b{color:var(--ink)}
+/* ── Чипы и кнопки ── */
+.chips{display:flex;flex-wrap:wrap;gap:8px}
+.chip{border:1.5px solid var(--line);background:var(--card);color:var(--ink);border-radius:99px;padding:9px 14px;font-size:13.5px;font-weight:600;cursor:pointer;font-family:inherit;transition:all .15s;position:relative}
+.chip:active{transform:scale(.95)}
+.chip.on{background:var(--accent);border-color:var(--accent);color:#fff}
+.chip .dot{position:absolute;top:6px;right:8px;width:6px;height:6px;border-radius:50%;background:var(--accent)}
+.btn{display:block;width:100%;border:none;border-radius:16px;padding:15px;font-size:15.5px;font-weight:700;font-family:inherit;cursor:pointer;transition:transform .15s,filter .15s}
+.btn:active{transform:scale(.97)}
+.btn-p{background:linear-gradient(135deg,var(--g1),var(--g2));color:#fff;box-shadow:0 8px 20px rgba(0,0,0,.12)}
+.btn-s{background:var(--accent-soft);color:var(--accent-ink)}
+.btn-g{background:transparent;color:var(--muted);border:1.5px solid var(--line)}
+.btn-danger{background:#FFE9E9;color:#C0392B}
+html.dark .btn-danger{background:#3A2020;color:#FF8A80}
+.btn-row{display:flex;gap:10px}.btn-row .btn{flex:1}
+.sec-title{font-size:16px;font-weight:800;margin-bottom:12px;display:flex;align-items:center;gap:8px}
+.muted{color:var(--muted);font-size:13.5px;line-height:1.5}
+/* ── Прогноз энергии ── */
+.energy{display:flex;align-items:flex-end;gap:8px;height:86px;margin-top:6px}
+.e-col{flex:1;display:flex;flex-direction:column;align-items:center;gap:6px;height:100%;justify-content:flex-end}
+.e-bar{width:100%;max-width:26px;border-radius:8px;background:linear-gradient(180deg,var(--g1),var(--g2));min-height:8px;animation:grow .7s ease both}
+@keyframes grow{from{height:8px!important}}
+.e-lab{font-size:10.5px;font-weight:700;color:var(--muted)}
+/* ── Календарь ── */
+.cal-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px}
+.cal-title{font-size:18px;font-weight:800}
+.cal-nav{display:flex;gap:8px}
+.cal-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:5px}
+.cal-wd{text-align:center;font-size:11px;font-weight:700;color:var(--muted);padding:4px 0;text-transform:uppercase}
+.cal-d{aspect-ratio:1;border-radius:13px;display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:600;cursor:pointer;position:relative;border:1.5px solid transparent;transition:transform .12s;background:transparent;color:var(--ink);font-family:inherit}
+.cal-d:active{transform:scale(.9)}
+.cal-d.dim{opacity:.28;pointer-events:none}
+.cal-d.period{background:var(--accent);color:#fff;font-weight:800}
+.cal-d.pred{border:1.5px dashed var(--accent);color:var(--accent-ink)}
+.cal-d.today{box-shadow:inset 0 0 0 2px var(--ink)}
+.cal-d .mk{position:absolute;bottom:5px;width:5px;height:5px;border-radius:50%}
+.mk.fer{background:var(--fer)}.mk.ovu{background:var(--ovu)}
+.cal-d.period .mk{background:#fff}
+.legend{display:flex;flex-wrap:wrap;gap:12px;margin-top:14px;font-size:12px;color:var(--muted);font-weight:600}
+.legend span{display:flex;align-items:center;gap:5px}
+.lg{width:10px;height:10px;border-radius:4px;display:inline-block}
+/* ── Статистика ── */
+.stat-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+.stat{background:var(--card);border:1px solid var(--line);border-radius:18px;padding:14px 10px;text-align:center;box-shadow:var(--shadow)}
+.stat b{display:block;font-size:24px;font-weight:800;color:var(--accent-ink)}
+.stat span{font-size:11px;color:var(--muted);font-weight:600}
+.bars{display:flex;align-items:flex-end;gap:10px;height:120px;margin-top:8px}
+.bar-c{flex:1;display:flex;flex-direction:column;align-items:center;gap:5px;height:100%;justify-content:flex-end}
+.bar{width:100%;max-width:34px;border-radius:9px 9px 4px 4px;background:linear-gradient(180deg,var(--g1),var(--g2));animation:grow .8s ease both}
+.bar-v{font-size:12px;font-weight:800}
+.bar-l{font-size:10px;color:var(--muted);font-weight:700}
+.pred-row{display:flex;justify-content:space-between;align-items:center;padding:11px 0;border-bottom:1px solid var(--line);font-size:14px;font-weight:600}
+.pred-row:last-child{border:none}
+.pred-row span{color:var(--muted);font-size:12.5px}
+/* ── Партнёр ── */
+.code-big{font-size:26px;font-weight:800;letter-spacing:3px;text-align:center;padding:14px;background:var(--accent-soft);border-radius:16px;color:var(--accent-ink);margin:10px 0}
+.input{width:100%;border:1.5px solid var(--line);background:var(--bg);color:var(--ink);border-radius:14px;padding:13px 14px;font-size:14.5px;font-family:inherit;font-weight:600;outline:none;transition:border .2s}
+.input:focus{border-color:var(--accent)}
+textarea.input{resize:none;min-height:74px}
+.p-card{border-left:4px solid var(--accent)}
+.p-top{display:flex;align-items:center;gap:14px;margin-bottom:12px}
+.p-ring{position:relative;width:64px;height:64px;flex-shrink:0}
+.p-ring svg{transform:rotate(-90deg)}
+.p-ring b{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:18px;font-weight:800}
+.p-name{font-weight:800;font-size:16px}
+.p-meta{font-size:12.5px;color:var(--muted);font-weight:600}
+.care{background:var(--accent-soft);border-radius:16px;padding:13px 15px;margin-top:10px}
+.care h4{font-size:13px;font-weight:800;color:var(--accent-ink);margin-bottom:7px}
+.care li{list-style:none;font-size:13.5px;font-weight:600;padding:3.5px 0;line-height:1.4}
+.p-x{margin-left:auto;background:none;border:none;font-size:16px;color:var(--muted);cursor:pointer;padding:6px}
+/* ── Навигация ── */
+nav{position:fixed;bottom:0;left:0;right:0;z-index:50;background:color-mix(in srgb,var(--card) 88%,transparent);backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);border-top:1px solid var(--line);padding:8px 10px calc(8px + env(safe-area-inset-bottom))}
+.nav-in{max-width:560px;margin:0 auto;display:flex;gap:4px}
+.nav-b{flex:1;background:none;border:none;border-radius:14px;padding:7px 2px;font-family:inherit;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:2px;color:var(--muted);font-size:10.5px;font-weight:700;transition:all .2s}
+.nav-b i{font-style:normal;font-size:20px}
+.nav-b.on{color:var(--accent-ink);background:var(--accent-soft)}
+/* ── Шторки ── */
+.overlay{position:fixed;inset:0;z-index:100;background:rgba(25,12,25,.45);backdrop-filter:blur(4px);display:none;align-items:flex-end;justify-content:center}
+.overlay.on{display:flex}
+.sheet{background:var(--card);width:100%;max-width:560px;max-height:88vh;overflow-y:auto;border-radius:28px 28px 0 0;padding:14px 20px calc(24px + env(safe-area-inset-bottom));animation:up .3s cubic-bezier(.22,1,.36,1)}
+@keyframes up{from{transform:translateY(60px);opacity:.4}}
+.handle{width:44px;height:5px;border-radius:3px;background:var(--line);margin:0 auto 14px}
+.sheet-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px}
+.sheet-title{font-size:18px;font-weight:800}
+.x{width:34px;height:34px;border-radius:12px;border:none;background:var(--bg);color:var(--muted);font-size:15px;cursor:pointer}
+.f-group{margin-bottom:16px}
+.f-label{font-size:12px;font-weight:800;letter-spacing:1px;text-transform:uppercase;color:var(--muted);margin-bottom:9px}
+.seg{display:flex;gap:7px}
+.seg .chip{flex:1;text-align:center;padding:10px 4px}
+.stepper{display:flex;align-items:center;justify-content:space-between;background:var(--bg);border:1.5px solid var(--line);border-radius:16px;padding:6px}
+.stepper button{width:40px;height:40px;border-radius:12px;border:none;background:var(--card);font-size:19px;font-weight:800;color:var(--accent-ink);cursor:pointer;box-shadow:var(--shadow)}
+.stepper b{font-size:17px;font-weight:800}
+.set-row{display:flex;align-items:center;justify-content:space-between;padding:13px 0;border-bottom:1px solid var(--line)}
+.set-row:last-child{border:none}
+.set-row .t{font-weight:700;font-size:14.5px}
+.set-row .s{font-size:12px;color:var(--muted);font-weight:600}
+/* ── Онбординг ── */
+#ob{position:fixed;inset:0;z-index:200;background:var(--bg);display:none;overflow-y:auto}
+#ob.on{display:block}
+.ob-in{max-width:440px;margin:0 auto;padding:40px 22px;min-height:100vh;display:flex;flex-direction:column;justify-content:center}
+.ob-emoji{font-size:58px;text-align:center;margin-bottom:16px;animation:pop .5s ease}
+.ob-h{font-size:26px;font-weight:800;text-align:center;letter-spacing:-.5px;margin-bottom:8px}
+.ob-p{text-align:center;color:var(--muted);font-weight:600;font-size:14.5px;line-height:1.55;margin-bottom:26px}
+.ob-dots{display:flex;gap:7px;justify-content:center;margin-bottom:24px}
+.ob-dots i{width:8px;height:8px;border-radius:50%;background:var(--track)}
+.ob-dots i.on{background:var(--accent);width:22px;border-radius:5px}
+.ob-step{display:none}.ob-step.on{display:block;animation:pop .3s ease}
+input[type=range]{width:100%;accent-color:var(--accent);height:34px}
+.range-val{text-align:center;font-size:30px;font-weight:800;color:var(--accent-ink)}
+.range-lab{text-align:center;font-size:12.5px;color:var(--muted);font-weight:700;margin-bottom:8px}
+/* ── Тост ── */
+#toast{position:fixed;left:50%;bottom:calc(96px + env(safe-area-inset-bottom));transform:translateX(-50%) translateY(20px);background:var(--ink);color:var(--bg);padding:12px 20px;border-radius:99px;font-size:13.5px;font-weight:700;z-index:300;opacity:0;pointer-events:none;transition:all .3s;white-space:nowrap;max-width:90vw}
+#toast.on{opacity:1;transform:translateX(-50%) translateY(0)}
+.empty{text-align:center;padding:30px 10px}
+.empty .e{font-size:46px;margin-bottom:12px}
+.plus-item{display:flex;justify-content:space-between;align-items:center;padding:13px 15px;background:var(--bg);border-radius:15px;margin-bottom:8px;font-weight:700;font-size:14px}
+.plus-item b{color:var(--accent-ink);white-space:nowrap}
+.tip-card{background:linear-gradient(135deg,var(--accent-soft),var(--card));cursor:pointer}
+@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+</style>
 </head>
 <body>
-    <div class="container">
-        <!-- Header -->
-        <header class="header">
-            <h1>🌸 Cycle Tracker</h1>
-            <div class="user-info">
-                <span id="username">Загрузка...</span>
-                <span id="premium-badge" class="premium-badge" style="display:none;">⭐ PREMIUM</span>
-            </div>
-        </header>
+<svg width="0" height="0" style="position:absolute"><defs>
+<linearGradient id="rg" x1="0%" y1="0%" x2="100%" y2="100%">
+<stop offset="0%" style="stop-color:var(--g1)"/><stop offset="100%" style="stop-color:var(--g2)"/>
+</linearGradient></defs></svg>
+<div class="blob b1"></div><div class="blob b2"></div>
 
-        <!-- Main Calendar View -->
-        <div id="calendar-view" class="view active">
-            <div class="month-nav">
-                <button onclick="changeMonth(-1)">◀</button>
-                <h2 id="current-month">Ноябрь 2026</h2>
-                <button onclick="changeMonth(1)">▶</button>
-            </div>
-            
-            <div class="calendar-grid" id="calendar">
-                <!-- Calendar will be generated by JS -->
-            </div>
+<div class="wrap">
+  <header>
+    <div class="logo">🌸 Bloom<em>.</em></div>
+    <button class="icon-btn" data-a="gear">⚙️</button>
+  </header>
+  <section id="tab-today" class="tab on"></section>
+  <section id="tab-cal" class="tab"></section>
+  <section id="tab-stats" class="tab"></section>
+  <section id="tab-partner" class="tab"></section>
+</div>
 
-            <div class="quick-actions">
-                <button class="btn-primary" onclick="showAddPeriod()">
-                    ➕ Начать период
-                </button>
-                <button class="btn-secondary" onclick="showStats()">
-                    📊 Статистика
-                </button>
-            </div>
-        </div>
+<nav><div class="nav-in">
+  <button class="nav-b on" data-a="nav" data-tab="today"><i>🌸</i>Сегодня</button>
+  <button class="nav-b" data-a="nav" data-tab="cal"><i>📅</i>Календарь</button>
+  <button class="nav-b" data-a="nav" data-tab="stats"><i>📊</i>Аналитика</button>
+  <button class="nav-b" data-a="nav" data-tab="partner"><i>💞</i>Партнёр</button>
+</div></nav>
 
-        <!-- Stats View -->
-        <div id="stats-view" class="view">
-            <h2>📊 Статистика</h2>
-            
-            <div class="stats-cards">
-                <div class="stat-card">
-                    <h3>Средняя длина цикла</h3>
-                    <p class="stat-value" id="avg-cycle-length">28 дней</p>
-                </div>
-                <div class="stat-card">
-                    <h3>Средняя длительность</h3>
-                    <p class="stat-value" id="avg-period-length">5 дней</p>
-                </div>
-                <div class="stat-card">
-                    <h3>Следующий период</h3>
-                    <p class="stat-value" id="next-period">Через 14 дней</p>
-                </div>
-            </div>
+<div class="overlay" id="ov"><div class="sheet" id="sheet"></div></div>
 
-            <div class="chart-container">
-                <canvas id="cycle-chart"></canvas>
-            </div>
+<div id="ob"><div class="ob-in">
+  <div class="ob-dots"><i class="on"></i><i></i><i></i></div>
+  <div class="ob-step on" id="ob0">
+    <div class="ob-emoji">🌸</div>
+    <div class="ob-h">Привет! Я Bloom</div>
+    <div class="ob-p">Твой личный трекер цикла. Все данные хранятся только на твоём устройстве — никто их не увидит, пока ты сама не поделишься.</div>
+    <div class="f-group"><div class="f-label">Как тебя зовут?</div>
+    <input class="input" data-in="ob-name" placeholder="Имя (необязательно)" maxlength="20"></div>
+    <button class="btn btn-p" data-a="ob-next">Начать →</button>
+  </div>
+  <div class="ob-step" id="ob1">
+    <div class="ob-emoji">📅</div>
+    <div class="ob-h">Когда была последняя менструация?</div>
+    <div class="ob-p">Выбери первый день последних месячных — от него я построю прогноз.</div>
+    <div class="f-group"><input class="input" type="date" data-in="ob-date" id="ob-date"></div>
+    <div class="btn-row"><button class="btn btn-g" data-a="ob-back">←</button><button class="btn btn-p" data-a="ob-next">Далее →</button></div>
+    <button class="btn btn-g" style="margin-top:10px" data-a="ob-skip">Настрою позже</button>
+  </div>
+  <div class="ob-step" id="ob2">
+    <div class="ob-emoji">⚙️</div>
+    <div class="ob-h">Твой ритм</div>
+    <div class="ob-p">Не знаешь точно? Оставь как есть — я подстроюсь после первых отметок.</div>
+    <div class="f-group"><div class="range-val" id="ob-cv">28</div><div class="range-lab">длина цикла, дней</div>
+    <input type="range" min="21" max="45" value="28" data-in="ob-cycle"></div>
+    <div class="f-group"><div class="range-val" id="ob-pv">5</div><div class="range-lab">длительность менструации, дней</div>
+    <input type="range" min="2" max="10" value="5" data-in="ob-period"></div>
+    <div class="btn-row"><button class="btn btn-g" data-a="ob-back">←</button><button class="btn btn-p" data-a="ob-done">Готово 🌸</button></div>
+  </div>
+</div></div>
 
-            <!-- Advanced Stats (Premium) -->
-            <div id="advanced-stats" class="premium-section">
-                <h3>🔮 Расширенная аналитика</h3>
-                <button class="btn-premium" onclick="showAdvancedStats()">
-                    Открыть за 50 ⭐
-                </button>
-            </div>
+<div id="toast"></div>
 
-            <button class="btn-secondary" onclick="showCalendar()">← Назад к календарю</button>
-        </div>
+<script>
+'use strict';
+/* ═══════════ База ═══════════ */
+const TG = window.Telegram && window.Telegram.WebApp;
+const LS = 'bloom_v1';
+const DEF = {onboarded:false, code:null, bot:'',
+  settings:{name:'', cycleLen:28, periodLen:5, theme:'rose', mode:'auto'},
+  periods:[], logs:{}, partners:[]};
+let DB;
+try{ DB = Object.assign(JSON.parse(JSON.stringify(DEF)), JSON.parse(localStorage.getItem(LS)||'{}')); }
+catch(e){ DB = JSON.parse(JSON.stringify(DEF)); }
+DB.settings = Object.assign({}, DEF.settings, DB.settings);
+function save(){ try{localStorage.setItem(LS, JSON.stringify(DB));}catch(e){} }
+function haptic(t){ try{ if(TG&&TG.HapticFeedback){ if(t==='ok')TG.HapticFeedback.notificationOccurred('success'); else TG.HapticFeedback.impactOccurred(t||'light'); } }catch(e){} }
 
-        <!-- Advanced Stats View (Premium) -->
-        <div id="advanced-stats-view" class="view">
-            <h2>🔮 Расширенная статистика</h2>
-            
-            <div class="advanced-charts">
-                <div class="chart-wrapper">
-                    <h3>Динамика циклов</h3>
-                    <canvas id="advanced-chart"></canvas>
-                </div>
-                
-                <div class="chart-wrapper">
-                    <h3>Интенсивность симптомов</h3>
-                    <div id="symptoms-chart"></div>
-                </div>
-            </div>
+/* ═══════════ Даты ═══════════ */
+const pad = n=>String(n).padStart(2,'0');
+const fmt = d=>d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate());
+const parse = s=>{const[a,b,c]=s.split('-').map(Number);return new Date(a,b-1,c);};
+const addD = (d,n)=>{const r=new Date(d);r.setDate(r.getDate()+n);return r;};
+const diff = (a,b)=>Math.round((b-a)/864e5);
+const today = ()=>{const n=new Date();return new Date(n.getFullYear(),n.getMonth(),n.getDate());};
+const clamp=(v,a,b)=>Math.min(b,Math.max(a,v));
+const MONTHS=['Январь','Февраль','Март','Апрель','Май','Июнь','Июль','Август','Сентябрь','Октябрь','Ноябрь','Декабрь'];
+const MON_S=['янв','фев','мар','апр','мая','июн','июл','авг','сен','окт','ноя','дек'];
+const WD=['Пн','Вт','Ср','Чт','Пт','Сб','Вс'];
+const fNice = d=>d.getDate()+' '+MON_S[d.getMonth()];
+const fFull = d=>WD[(d.getDay()+6)%7]+', '+d.getDate()+' '+['января','февраля','марта','апреля','мая','июня','июля','августа','сентября','октября','ноября','декабря'][d.getMonth()];
+function plural(n,a,b,c){n=Math.abs(n)%100;const d=n%10;if(n>10&&n<20)return c;if(d>1&&d<5)return b;if(d===1)return a;return c;}
 
-            <button class="btn-secondary" onclick="showStats()">← Назад</button>
-        </div>
+/* ═══════════ Математика цикла ═══════════ */
+function statsOf(starts, lens, defC, defP){
+  const s=[...starts].sort(); const gaps=[];
+  for(let i=1;i<s.length;i++){const g=diff(parse(s[i-1]),parse(s[i])); if(g>=15&&g<=60)gaps.push(g);}
+  const avgC = gaps.length? clamp(Math.round(gaps.reduce((a,b)=>a+b,0)/gaps.length),21,45) : defC;
+  const avgP = lens&&lens.length? clamp(Math.round(lens.reduce((a,b)=>a+b,0)/lens.length),2,10) : defP;
+  return {starts:s, gaps, avgC, avgP};
+}
+const myStats = ()=>statsOf(DB.periods.map(p=>p.start), DB.periods.map(p=>p.len), DB.settings.cycleLen, DB.settings.periodLen);
+function predStarts(st,n){ const out=[]; if(!st.starts.length)return out;
+  let d=addD(parse(st.starts[st.starts.length-1]), st.avgC);
+  for(let i=0;i<n;i++){out.push(d); d=addD(d,st.avgC);} return out; }
+function inLogged(date,st){ for(const s of st.starts){const p=parse(s); if(date>=p&&date<=addD(p,st.avgP-1))return true;} return false; }
+function phaseAt(date,st){
+  if(!st.starts.length)return null;
+  const all=[...st.starts.map(parse),...predStarts(st,8)].sort((a,b)=>a-b);
+  let base=null; for(const d of all){ if(d<=date)base=d; else break; }
+  if(!base)return null;
+  const cd=diff(base,date)+1, ovu=st.avgC-14;
+  if(inLogged(date,st))return 'menstrual';
+  if(cd<=st.avgP)return 'menstrual';
+  if(cd===ovu)return 'ovulation';
+  if(cd>=ovu-4&&cd<=ovu+1)return 'fertile';
+  if(cd>ovu+1)return 'luteal';
+  return 'follicular';
+}
+function model(st,ref){
+  ref=ref||today();
+  if(!st.starts.length)return null;
+  let base=null; for(const s of st.starts){const p=parse(s); if(p<=ref)base=p;}
+  if(!base)return {future:true};
+  const next=addD(base,st.avgC);
+  const cd=diff(base,ref)+1;
+  const late=Math.max(0,diff(next,ref));
+  const until=diff(ref,next);
+  const inP=inLogged(ref,st);
+  let ph=phaseAt(ref,st); if(late>0)ph='late';
+  return {cd,next,late,until,inP,phase:ph,ovu:addD(next,-14),progress:clamp(cd/st.avgC,0,1)};
+}
+function energyOf(cd,st){ const ovu=st.avgC-14;
+  if(cd<=st.avgP)return 2;
+  if(cd<ovu-4)return 3+(cd-st.avgP)/Math.max(1,ovu-4-st.avgP);
+  if(cd<=ovu+1)return cd===ovu?5:4.5;
+  return Math.max(2.2, 4.5-((cd-ovu-1)/13)*2.2); }
 
-        <!-- Partners View -->
-        <div id="partners-view" class="view">
-            <h2>👥 Партнёры</h2>
-            
-            <div class="partner-section">
-                <h3>Мой код:</h3>
-                <div class="code-box">
-                    <code id="my-partner-code">XXXX-XXXX</code>
-                    <button onclick="copyCode()" class="btn-small">Копировать</button>
-                </div>
-            </div>
+/* ═══════════ Словари ═══════════ */
+const PH={
+ menstrual:{i:'🌸',n:'Менструация',d:'Дни обновления. Энергия может быть ниже — это абсолютно нормально. Слушай тело и давай ему отдых.',t:['Тёпло на живот и поясницу — грелка творит чудеса','Продукты с железом: гречка, гранат, тёмный шоколад','Лёгкая растяжка вместо тяжёлых тренировок']},
+ follicular:{i:'🌱',n:'Фолликулярная фаза',d:'Эстроген растёт — энергия и настроение поднимаются. Лучшее время начинать новое и браться за сложное.',t:['Планируй важные дела и встречи на эти дни','Тренировки заходят отлично — добавь интенсивности','Кожа сияет — время для фото и выходов ✨']},
+ fertile:{i:'💫',n:'Фертильное окно',d:'Дни максимальной вероятности зачатия. Организм на подъёме, чувства обострены.',t:['Если беременность не в планах — будь внимательнее','Отличное время для свиданий и романтики','Тело на пике — используй эту энергию']},
+ ovulation:{i:'✨',n:'Овуляция',d:'Пик цикла! Яйцеклетка выходит из яичника. Максимум энергии, уверенности и обаяния.',t:['Самый продуктивный день цикла — действуй','Возможны лёгкие покалывания внизу живота — это норма','Время смелых решений и важных разговоров']},
+ luteal:{i:'🍂',n:'Лютеиновая фаза',d:'Прогестерон растёт. Ближе к концу возможен ПМС: перепады настроения, тяга к сладкому. Будь бережнее к себе.',t:['Снизь темп — это не лень, это физиология','Магний и сон помогут пережить ПМС мягче','Не принимай важных решений на эмоциях']},
+ late:{i:'⏳',n:'Задержка',d:'Цикл длиннее обычного. Стресс, болезни и нагрузки могут сдвигать даты — это бывает у всех.',t:['Не паникуй: сдвиг на несколько дней — норма','Если задержка больше 7–10 дней — покажись врачу','Отметь начало, когда придёт — прогноз уточнится']}
+};
+const CARE={
+ menstrual:['Принеси тёплый плед и что-то вкусное 🍫','Спроси, нужно ли обезболивающее 💊','Возьми на себя бытовые дела сегодня 🧹'],
+ follicular:['Отличное время для свидания — позови куда-нибудь 🌷','Предложи активность: прогулку, спорт, поездку 🚴','Поддержи её новые идеи и начинания 💡'],
+ fertile:['Она чувствует себя уверенно — поддержи это 🌟','Запланируй что-то приятное вместе 🎉','Комплименты сейчас работают особенно хорошо 💐'],
+ ovulation:['Энергия на пике — стройте совместные планы ✨','Время для романтики и близких разговоров 💞','Не откладывай важные разговоры — момент лучший 🗣️'],
+ luteal:['Больше терпения: возможен ПМС 🍂','Не спорь по мелочам — обними вместо слов 🤗','Купи её любимые вкусняшки заранее 🛍️'],
+ late:['Задержка = стресс. Не нагнетай и не паникуй 🫶','Мягко спроси, как она себя чувствует 💬','Если задержка долгая — предложи сходить к врачу вместе 🩺']
+};
+const SYM=[['cramps','🌀 Спазмы'],['headache','🤕 Голова'],['fatigue','😴 Усталость'],['bloating','🎈 Вздутие'],['acne','🫧 Высыпания'],['back','🦴 Спина'],['craving','🍫 Тяга к сладкому'],['sleep','🌙 Бессонница']];
+const MOODS=[['great','😄'],['good','🙂'],['ok','😐'],['sad','😔'],['angry','😤']];
+const THEMES=[['rose','🌹 Роза'],['lavender','💜 Лаванда'],['mint','🌿 Мята']];
 
-            <div class="partner-section">
-                <h3>Добавить партнёра:</h3>
-                <input type="text" id="partner-code-input" placeholder="Введите код партнёра">
-                <button class="btn-primary" onclick="addPartner()">Добавить</button>
-            </div>
+/* ═══════════ UI-состояние ═══════════ */
+const UI={tab:'today', calY:today().getFullYear(), calM:today().getMonth(), sel:null, draft:null, ob:0, obData:{name:'',date:fmt(today()),cycle:28,period:5}, delId:null};
+const $=s=>document.querySelector(s);
+function toast(msg){const t=$('#toast');t.textContent=msg;t.classList.add('on');clearTimeout(t._x);t._x=setTimeout(()=>t.classList.remove('on'),2300);}
 
-            <div id="partners-list">
-                <h3>Ваши партнёры:</h3>
-                <div id="partners-container">
-                    <!-- Partners will be loaded here -->
-                </div>
-            </div>
+/* ═══════════ Кольца ═══════════ */
+function ring(size,stroke,prog){
+  const r=(size-stroke)/2, c=2*Math.PI*r, off=c*(1-clamp(prog,0,1));
+  return '<svg width="'+size+'" height="'+size+'" viewBox="0 0 '+size+' '+size+'">'+
+   '<circle cx="'+size/2+'" cy="'+size/2+'" r="'+r+'" fill="none" stroke="var(--track)" stroke-width="'+stroke+'"/>'+
+   '<circle class="ring-fg" cx="'+size/2+'" cy="'+size/2+'" r="'+r+'" fill="none" stroke="url(#rg)" stroke-width="'+stroke+'" stroke-linecap="round" stroke-dasharray="'+c+'" stroke-dashoffset="'+c+'" data-off="'+off+'"/></svg>';
+}
+function animRings(){ requestAnimationFrame(()=>requestAnimationFrame(()=>{
+  document.querySelectorAll('.ring-fg').forEach(el=>{el.style.strokeDashoffset=el.dataset.off;});
+}));}
 
-            <!-- Partner Cycles (Premium) -->
-            <div id="partner-cycles-view" class="premium-section">
-                <h3>📈 Циклы партнёров</h3>
-                <button class="btn-premium" onclick="showPartnerCycles()">
-                    Смотреть за 100 ⭐
-                </button>
-            </div>
+/* ═══════════ Рендер: Сегодня ═══════════ */
+function renderToday(){
+  const st=myStats(), m=model(st), t=today(), name=DB.settings.name;
+  let html='<div class="greet">'+(name?'Привет, '+name+' 👋':'Привет 👋')+'</div><h1 class="day-title">'+fFull(t)+'</h1>';
+  if(!m){
+    html+='<div class="card ring-card"><div class="empty"><div class="e">🌱</div><div class="ob-h" style="font-size:20px">Начнём отслеживать?</div><p class="muted" style="margin:8px 0 18px">Отметь первый день последней менструации — и я построю твой персональный прогноз.</p><button class="btn btn-p" data-a="quick">🩸 Отметить менструацию</button></div></div>';
+    $('#tab-today').innerHTML=html; return;
+  }
+  const ph=PH[m.phase]||PH.follicular;
+  let center;
+  if(m.late>0){center='<div class="rc-label">Задержка</div><div class="rc-num" style="font-size:52px">'+m.late+'</div><div class="rc-sub">'+plural(m.late,'день','дня','дней')+'</div>';}
+  else{center='<div class="rc-label">День цикла</div><div class="rc-num">'+m.cd+'</div><div class="rc-sub">из ~'+st.avgC+'</div>';}
+  let count;
+  if(m.inP)count='Менструация идёт 🌸 Береги себя';
+  else if(m.late>0)count='Ожидалось <b>'+fNice(m.next)+'</b>';
+  else if(m.until===0)count='Менструация ожидается <b>сегодня</b>';
+  else count='Менструация через <b>'+m.until+' '+plural(m.until,'день','дня','дней')+'</b> · '+fNice(m.next);
+  html+='<div class="card ring-card"><div class="ring-box" data-a="quick">'+ring(250,14,m.progress)+
+    '<div class="ring-center">'+center+'</div></div>'+
+    '<div class="phase-chip">'+ph.i+' '+ph.n+'</div><div class="countdown">'+count+'</div></div>';
+  // быстрые отметки
+  const log=DB.logs[fmt(t)]||{};
+  const marks=[['flow','🩸 Выделения',log.flow>0],['mood','😊 Настроение',!!log.mood],['energy','⚡ Энергия',!!log.energy],['note','📝 Заметка',!!log.note]];
+  html+='<div class="card"><div class="sec-title">Как ты сегодня?</div><div class="chips">'+
+    marks.map(x=>'<button class="chip" data-a="quick">'+x[1]+(x[2]?'<span class="dot"></span>':'')+'</button>').join('')+'</div></div>';
+  // прогноз энергии
+  html+='<div class="card"><div class="sec-title">⚡ Прогноз энергии</div><div class="energy">';
+  for(let i=0;i<7;i++){const d=addD(t,i);const p=phaseAt(d,st);let e;
+    if(p){const all=[...st.starts.map(parse),...predStarts(st,8)].sort((a,b)=>a-b);let b=null;for(const x of all){if(x<=d)b=x;else break;}e=energyOf(diff(b,d)+1,st);}else e=3;
+    const hgt=Math.round(e/5*62)+8;
+    html+='<div class="e-col"><div class="e-bar" style="height:'+hgt+'px"></div><div class="e-lab">'+(i===0?'Сег':WD[(d.getDay()+6)%7])+'</div></div>';}
+  html+='</div><p class="muted" style="margin-top:10px">Основан на фазах твоего цикла</p></div>';
+  // совет дня
+  const tips=ph.t, tip=tips[Math.floor(diff(new Date(2026,0,1),t))%tips.length];
+  html+='<div class="card tip-card" data-a="tip-more"><div class="sec-title">'+ph.i+' Совет дня</div><p style="font-weight:600;font-size:14.5px;line-height:1.5">'+tip+'</p><p class="muted" style="margin-top:8px">Нажми, чтобы узнать о фазе больше →</p></div>';
+  $('#tab-today').innerHTML=html; animRings();
+}
 
-            <button class="btn-secondary" onclick="showCalendar()">← Назад к календарю</button>
-        </div>
+/* ═══════════ Рендер: Календарь ═══════════ */
+function renderCal(){
+  const st=myStats(), t=today(), y=UI.calY, mo=UI.calM;
+  const first=new Date(y,mo,1), last=new Date(y,mo+1,0);
+  const shift=(first.getDay()+6)%7;
+  const preds=predStarts(st,8);
+  let html='<div class="card"><div class="cal-head"><div class="cal-title">'+MONTHS[mo]+' '+y+'</div><div class="cal-nav">'+
+    '<button class="icon-btn" data-a="cal-prev">‹</button><button class="icon-btn" data-a="cal-today" style="width:auto;padding:0 14px;font-size:13px;font-weight:800">Сегодня</button><button class="icon-btn" data-a="cal-next">›</button></div></div><div class="cal-grid">';
+  WD.forEach(w=>html+='<div class="cal-wd">'+w+'</div>');
+  for(let i=0;i<shift;i++)html+='<div class="cal-d dim"></div>';
+  for(let d=1;d<=last.getDate();d++){
+    const dt=new Date(y,mo,d); let cls='cal-d', mk='';
+    if(inLogged(dt,st))cls+=' period';
+    else{ for(const ps of preds){ if(dt>=ps&&dt<=addD(ps,st.avgP-1)){cls+=' pred';break;} } }
+    const p=phaseAt(dt,st);
+    if(p==='ovulation')mk='<span class="mk ovu"></span>'; else if(p==='fertile')mk='<span class="mk fer"></span>';
+    if(fmt(dt)===fmt(t))cls+=' today';
+    if(DB.logs[fmt(dt)]&&!inLogged(dt,st))mk='<span class="mk" style="background:var(--muted)"></span>';
+    html+='<button class="'+cls+'" data-a="day" data-d="'+fmt(dt)+'">'+d+mk+'</button>';
+  }
+  html+='</div><div class="legend"><span><i class="lg" style="background:var(--accent)"></i>менструация</span><span><i class="lg" style="border:1.5px dashed var(--accent)"></i>прогноз</span><span><i class="lg" style="background:var(--fer);border-radius:50%"></i>фертильно</span><span><i class="lg" style="background:var(--ovu);border-radius:50%"></i>овуляция</span></div></div>';
+  $('#tab-cal').innerHTML=html;
+}
 
-        <!-- Partner Cycles View (Premium) -->
-        <div id="partner-cycles-detail-view" class="view">
-            <h2>📈 Циклы партнёров</h2>
-            <div id="partner-cycles-container">
-                <!-- Partner cycles will be rendered here -->
-            </div>
-            <button class="btn-secondary" onclick="showPartners()">← Назад</button>
-        </div>
+/* ═══════════ Рендер: Аналитика ═══════════ */
+function renderStats(){
+  const st=myStats();
+  if(!st.starts.length){
+    $('#tab-stats').innerHTML='<div class="card"><div class="empty"><div class="e">📊</div><div class="ob-h" style="font-size:19px">Пока пусто</div><p class="muted" style="margin:8px 0 18px">Отметь хотя бы одну менструацию — и здесь появится твоя статистика.</p><button class="btn btn-p" data-a="quick">Отметить</button></div></div>';return;
+  }
+  const spread=st.gaps.length?Math.max(...st.gaps)-Math.min(...st.gaps):null;
+  const reg=spread===null?'—':(spread<=4?'Стабильный':'Варьируется');
+  let html='<div class="stat-grid">'+
+   '<div class="stat"><b>'+st.avgC+'</b><span>'+plural(st.avgC,'день','дня','дней')+' цикл</span></div>'+
+   '<div class="stat"><b>'+st.avgP+'</b><span>'+plural(st.avgP,'день','дня','дней')+' менструация</span></div>'+
+   '<div class="stat"><b style="font-size:15px;padding:6px 0">'+reg+'</b><span>ритм</span></div></div>';
+  if(st.gaps.length){
+    const g=st.gaps.slice(-6), mx=Math.max(...g,30);
+    html+='<div class="card" style="margin-top:14px"><div class="sec-title">📈 История циклов</div><div class="bars">';
+    g.forEach((v,i)=>{const idx=st.starts.length-g.length+i;const lab=MON_S[parse(st.starts[idx]).getMonth()];
+      html+='<div class="bar-c"><div class="bar-v">'+v+'</div><div class="bar" style="height:'+Math.round(v/mx*72)+'px"></div><div class="bar-l">'+lab+'</div></div>';});
+    html+='</div></div>';
+  } else {
+    html+='<div class="card" style="margin-top:14px"><p class="muted">📈 График истории появится после второго отмеченного цикла.</p></div>';
+  }
+  // симптомы
+  const cnt={};Object.values(DB.logs).forEach(l=>(l.syms||[]).forEach(s=>cnt[s]=(cnt[s]||0)+1));
+  const top=Object.entries(cnt).sort((a,b)=>b[1]-a[1]).slice(0,6);
+  if(top.length){html+='<div class="card"><div class="sec-title">🔁 Частые симптомы</div><div class="chips">'+
+    top.map(([k,v])=>{const s=SYM.find(x=>x[0]===k);return '<span class="chip">'+(s?s[1]:k)+' · '+v+'</span>';}).join('')+'</div></div>';}
+  // прогнозы
+  html+='<div class="card"><div class="sec-title">🔮 Следующие циклы</div>';
+  predStarts(st,3).forEach(d=>{const u=diff(today(),d);
+    html+='<div class="pred-row"><b>'+fNice(d)+'</b><span>'+(u>=0?'через '+u+' '+plural(u,'день','дня','дней'):'ожидается')+'</span></div>';});
+  html+='</div><button class="btn btn-s" data-a="export">📥 Экспорт данных</button>';
+  $('#tab-stats').innerHTML=html;
+}
 
-        <!-- AI Predictions View (Premium) -->
-        <div id="ai-predictions-view" class="view">
-            <h2>🤖 AI Прогнозы</h2>
-            <div id="ai-predictions-container">
-                <!-- AI predictions will be rendered here -->
-            </div>
-            <button class="btn-secondary" onclick="showCalendar()">← Назад</button>
-        </div>
+/* ═══════════ Партнёр: код-ссылка ═══════════ */
+function enc(o){return btoa(unescape(encodeURIComponent(JSON.stringify(o)))).replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,'');}
+function dec(s){s=s.replace(/-/g,'+').replace(/_/g,'/');while(s.length%4)s+='=';return JSON.parse(decodeURIComponent(escape(atob(s))));}
+function genCode(){const A='ABCDEFGHJKMNPQRSTUVWXYZ23456789';let c='';for(let i=0;i<4;i++)c+=A[Math.floor(Math.random()*A.length)];return 'BLM-'+c;}
+function shareLink(){const st=myStats();const p={v:1,n:DB.settings.name||'Она',c:st.avgC,p:st.avgP,s:st.starts.slice(-3)};
+  return location.origin+location.pathname+'#p='+enc(p);}
+function copyTxt(txt,msg){
+  const done=()=>{toast(msg||'Скопировано 📋');haptic('ok');};
+  if(navigator.clipboard&&navigator.clipboard.writeText){navigator.clipboard.writeText(txt).then(done).catch(()=>fallback());}else fallback();
+  function fallback(){const ta=document.createElement('textarea');ta.value=txt;document.body.appendChild(ta);ta.select();try{document.execCommand('copy');done();}catch(e){toast('Не удалось скопировать');}ta.remove();}
+}
+function addPartner(raw,silent){
+  try{
+    let s=raw.trim(); const i=s.indexOf('#p='); if(i>=0)s=s.slice(i+3);
+    const p=dec(s);
+    if(!p||!Array.isArray(p.s)||!p.s.length)throw 0;
+    const key=p.n+'|'+p.s.join(',');
+    if(DB.partners.some(x=>x.key===key)){if(!silent)toast('Этот партнёр уже добавлен 💞');return true;}
+    DB.partners.push({id:'p'+Date.now(),key,p});save();
+    if(!silent){toast('Партнёр добавлен 💞');haptic('ok');}
+    return true;
+  }catch(e){ if(!silent)toast('Не похоже на код-ссылку 🤔'); return false; }
+}
+function renderPartner(){
+  if(!DB.code){DB.code=genCode();save();}
+  let html='<div class="card"><div class="sec-title">💌 Твой код-ссылка</div>'+
+   '<p class="muted">Отправь её партнёру — он увидит твой цикл и <b>советы, как тебя поддержать</b>. Полный контроль: удали доступ в любой момент.</p>'+
+   '<div class="code-big">'+DB.code+'</div><div class="btn-row">'+
+   '<button class="btn btn-s" data-a="p-copy">📋 Скопировать</button><button class="btn btn-p" data-a="p-share">💬 Отправить</button></div></div>';
+  html+='<div class="card"><div class="sec-title">➕ Добавить партнёра</div><p class="muted" style="margin-bottom:10px">Вставь код-ссылку, которую прислал партнёр:</p>'+
+   '<input class="input" id="pin" placeholder="https://…#p=…"><div style="height:10px"></div><button class="btn btn-s" data-a="p-add">Подключить</button></div>';
+  if(!DB.partners.length){
+    html+='<div class="card"><div class="empty" style="padding:18px"><div class="e">💞</div><p class="muted">Пока никого нет. Подключи партнёра — и он будет знать, когда тебе нужна забота, а когда — приключения.</p></div></div>';
+  } else {
+    const stOf=p=>statsOf(p.s,[],p.c||28,p.p||5);
+    DB.partners.forEach(x=>{
+      const st=stOf(x.p), m=model(st), ph=m&&m.phase?PH[m.phase]:null;
+      const ringHtml=m&&!m.future?ring(64,6,m.progress)+'<b>'+(m.late>0?'⏳':m.cd)+'</b>':'<b>🌸</b>';
+      const meta=m&&!m.future?(m.late>0?'Задержка '+m.late+' '+plural(m.late,'день','дня','дней'):(ph?ph.i+' '+ph.n:'')+(m.until>0?' · через '+m.until+' дн':'')):'Ждём данных';
+      const care=CARE[m&&m.phase?m.phase:'follicular'];
+      html+='<div class="card p-card"><div class="p-top"><div class="p-ring">'+ringHtml+'</div>'+
+       '<div><div class="p-name">'+esc(x.p.n)+'</div><div class="p-meta">'+meta+'</div></div>'+
+       '<button class="p-x" data-a="p-del" data-id="'+x.id+'">✕</button></div>'+
+       '<div class="care"><h4>💞 Как поддержать сейчас</h4><ul>'+care.map(c=>'<li>'+c+'</li>').join('')+'</ul></div></div>';
+    });
+  }
+  $('#tab-partner').innerHTML=html; animRings();
+}
+function esc(s){return String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));}
 
-        <!-- Export Data Section (Premium) -->
-        <div class="premium-section">
-            <h3>📥 Экспорт данных</h3>
-            <button class="btn-premium" onclick="exportData()">
-                Экспортировать за 30 ⭐
-            </button>
-        </div>
+/* ═══════════ Шторки ═══════════ */
+function openSheet(html){$('#sheet').innerHTML='<div class="handle"></div>'+html;$('#ov').classList.add('on');syncBack();}
+function closeSheet(){$('#ov').classList.remove('on');UI.sel=null;syncBack();}
+function head(title){return '<div class="sheet-head"><div class="sheet-title">'+title+'</div><button class="x" data-a="sheet-close">✕</button></div>';}
 
-        <!-- Bottom Navigation -->
-        <nav class="bottom-nav">
-            <button onclick="showCalendar()" class="nav-btn active">📅 Календарь</button>
-            <button onclick="showPartners()" class="nav-btn">👥 Партнёры</button>
-            <button onclick="showStats()" class="nav-btn">📊 Статистика</button>
-            <button onclick="showAIPredictions()" class="nav-btn premium-feature">🤖 AI</button>
-        </nav>
-    </div>
+function openDay(ds){
+  UI.sel=ds; const dt=parse(ds), st=myStats();
+  const ex=DB.logs[ds]||{};
+  UI.draft={flow:ex.flow||0,mood:ex.mood||null,energy:ex.energy||null,syms:[...(ex.syms||[])],note:ex.note||''};
+  const ph=phaseAt(dt,st), phl=ph?(PH[ph].i+' '+PH[ph].n):'';
+  const isStart=DB.periods.some(p=>p.start===ds);
+  const span=DB.periods.find(p=>{const s=parse(p.start);return dt>=s&&dt<=addD(s,p.len-1);});
+  let pbtn;
+  if(isStart)pbtn='<button class="btn btn-danger" data-a="period-del" data-start="'+ds+'">🗑 Убрать начало менструации</button>';
+  else if(span)pbtn='<button class="btn btn-g" data-a="period-del" data-start="'+span.start+'">Убрать цикл от '+fNice(parse(span.start))+'</button>';
+  else pbtn='<button class="btn btn-p" data-a="period-add">🩸 Менструация началась в этот день</button>';
+  const d=UI.draft;
+  let html=head(fFull(dt))+'<div class="muted" style="margin:-6px 0 14px">'+phl+(fmt(dt)===fmt(today())?' · сегодня':'')+'</div>';
+  html+='<div class="f-group"><div class="f-label">Выделения</div><div class="seg">'+
+    ['Нет','💧','💧💧','💧💧💧'].map((l,i)=>'<button class="chip'+(d.flow===i?' on':'')+'" data-a="flow" data-v="'+i+'">'+l+'</button>').join('')+'</div></div>';
+  html+='<div class="f-group"><div class="f-label">Настроение</div><div class="seg">'+
+    MOODS.map(m=>'<button class="chip'+(d.mood===m[0]?' on':'')+'" data-a="mood" data-v="'+m[0]+'" style="font-size:19px">'+m[1]+'</button>').join('')+'</div></div>';
+  html+='<div class="f-group"><div class="f-label">Энергия</div><div class="seg">'+
+    [1,2,3,4,5].map(v=>'<button class="chip'+(d.energy===v?' on':'')+'" data-a="energy" data-v="'+v+'">'+v+'</button>').join('')+'</div></div>';
+  html+='<div class="f-group"><div class="f-label">Симптомы</div><div class="chips">'+
+    SYM.map(s=>'<button class="chip'+(d.syms.includes(s[0])?' on':'')+'" data-a="sym" data-v="'+s[0]+'">'+s[1]+'</button>').join('')+'</div></div>';
+  html+='<div class="f-group"><div class="f-label">Заметка</div><textarea class="input" data-in="note" placeholder="Как прошёл день?">'+esc(d.note)+'</textarea></div>';
+  html+=pbtn+'<div style="height:10px"></div><button class="btn btn-s" data-a="save-day">Сохранить день ✓</button>';
+  openSheet(html);
+}
+function openPhase(){
+  const m=model(myStats()); if(!m||!m.phase)return;
+  const p=PH[m.phase];
+  openSheet(head(p.i+' '+p.n)+'<p style="font-weight:600;line-height:1.6;font-size:14.5px;margin-bottom:16px">'+p.d+'</p>'+
+   '<div class="care"><h4>Рекомендации</h4><ul>'+p.t.map(x=>'<li>· '+x+'</li>').join('')+'</ul></div>'+
+   '<div style="height:14px"></div><button class="btn btn-s" data-a="sheet-close">Понятно 💗</button>');
+}
+function openSettings(){
+  const s=DB.settings;
+  let html=head('⚙️ Настройки');
+  html+='<div class="f-group"><div class="f-label">Имя</div><input class="input" data-in="name" value="'+esc(s.name)+'" placeholder="Как тебя зовут?" maxlength="20"></div>';
+  html+='<div class="f-group"><div class="f-label">Длина цикла</div><div class="stepper"><button data-a="set-cycle" data-d="-1">−</button><b><span id="scv">'+s.cycleLen+'</span> дн</b><button data-a="set-cycle" data-d="1">+</button></div></div>';
+  html+='<div class="f-group"><div class="f-label">Длительность менструации</div><div class="stepper"><button data-a="set-period" data-d="-1">−</button><b><span id="spv">'+s.periodLen+'</span> дн</b><button data-a="set-period" data-d="1">+</button></div></div>';
+  html+='<div class="f-group"><div class="f-label">Тема</div><div class="chips">'+THEMES.map(t=>'<button class="chip'+(s.theme===t[0]?' on':'')+'" data-a="theme" data-v="'+t[0]+'">'+t[1]+'</button>').join('')+'</div></div>';
+  html+='<div class="f-group"><div class="f-label">Режим</div><div class="chips">'+[['auto','🌗 Авто'],['light','☀️ Светлая'],['dark','🌙 Тёмная']].map(m=>'<button class="chip'+(s.mode===m[0]?' on':'')+'" data-a="mode" data-v="'+m[0]+'">'+m[1]+'</button>').join('')+'</div></div>';
+  html+='<div class="f-group"><div class="f-label">Username бота (для Plus ⭐)</div><input class="input" data-in="bot" value="'+esc(DB.bot)+'" placeholder="например MyBloomBot (без @)"></div>';
+  html+='<div class="set-row"><div><div class="t">👑 Bloom Plus</div><div class="s">Дополнения за Telegram Stars</div></div><button class="chip" data-a="plus">Открыть</button></div>';
+  html+='<div class="set-row"><div><div class="t">📥 Экспорт данных</div><div class="s">JSON-файл со всеми записями</div></div><button class="chip" data-a="export">Скачать</button></div>';
+  html+='<div class="set-row"><div><div class="t">🔒 Приватность</div><div class="s">Данные только на устройстве</div></div><button class="chip" data-a="about">Подробнее</button></div>';
+  html+='<div class="set-row"><div><div class="t" style="color:#C0392B">🗑 Сбросить всё</div><div class="s">Удалить все данные безвозвратно</div></div><button class="chip" data-a="reset">Сброс</button></div>';
+  openSheet(html);
+}
+function openPlus(){
+  let html=head('👑 Bloom Plus');
+  html+='<p class="muted" style="margin-bottom:14px">Необязательные дополнения. Оплата — звёздами Telegram ⭐ прямо в боте. Базовое приложение всегда бесплатно.</p>';
+  [['📊 Глубокая аналитика','50 ⭐'],['💞 Забота+ · расширенные советы партнёру','75 ⭐'],['📥 Красивый PDF-отчёт для врача','30 ⭐'],['👑 Всё навсегда','149 ⭐']].forEach(x=>{
+    html+='<div class="plus-item"><span>'+x[0]+'</span><b>'+x[1]+'</b></div>';});
+  html+='<div style="height:8px"></div><button class="btn btn-p" data-a="plus-open">⭐ Купить через бота</button><div style="height:10px"></div><button class="btn btn-g" data-a="sheet-close">Позже</button>';
+  openSheet(html);
+}
+function openAbout(){
+  openSheet(head('🔒 Приватность')+'<p style="font-weight:600;line-height:1.65;font-size:14.5px">Bloom хранит все записи <b>только на твоём устройстве</b>. Никаких серверов и аккаунтов. Партнёр видит лишь тот снимок цикла, который ты сама отправила в код-ссылке — и только даты, без симптомов и заметок.</p><div style="height:14px"></div><p class="muted">Bloom v1.0 · сделано с 💗<br>Прогнозы носят справочный характер и не заменяют консультацию врача.</p><div style="height:14px"></div><button class="btn btn-s" data-a="sheet-close">Закрыть</button>');
+}
+function openConfirm(kind){
+  if(kind==='reset'){openSheet(head('🗑 Сбросить всё?')+'<p class="muted" style="margin-bottom:16px">Все циклы, заметки и партнёры будут удалены. Это нельзя отменить.</p><div class="btn-row"><button class="btn btn-g" data-a="sheet-close">Отмена</button><button class="btn btn-danger" data-a="reset-yes">Удалить всё</button></div>');}
+  else{openSheet(head('Удалить партнёра?')+'<p class="muted" style="margin-bottom:16px">Ты перестанешь видеть его цикл. Он всё ещё сможет видеть твой, пока у него есть твоя ссылка.</p><div class="btn-row"><button class="btn btn-g" data-a="sheet-close">Отмена</button><button class="btn btn-danger" data-a="p-del-yes">Удалить</button></div>');}
+}
 
-    <script src="script.js"></script>
+/* ═══════════ Навигация ═══════════ */
+function setTab(name){
+  UI.tab=name;
+  document.querySelectorAll('.tab').forEach(s=>s.classList.remove('on'));
+  $('#tab-'+name).classList.add('on');
+  document.querySelectorAll('.nav-b').forEach(b=>b.classList.toggle('on',b.dataset.tab===name));
+  renderCurrent(); syncBack(); window.scrollTo({top:0});
+}
+function renderCurrent(){
+  if(UI.tab==='today')renderToday();
+  else if(UI.tab==='cal')renderCal();
+  else if(UI.tab==='stats')renderStats();
+  else renderPartner();
+}
+function syncBack(){
+  try{ if(TG&&TG.BackButton){ if($('#ov').classList.contains('on')||UI.tab!=='today')TG.BackButton.show(); else TG.BackButton.hide(); } }catch(e){}
+}
+
+/* ═══════════ Тема ═══════════ */
+function applyTheme(){
+  document.documentElement.dataset.theme=DB.settings.theme;
+  const mode=DB.settings.mode;
+  let dark=false;
+  if(mode==='dark')dark=true;
+  else if(mode==='auto'){ dark=(TG&&TG.colorScheme==='dark')||window.matchMedia('(prefers-color-scheme: dark)').matches; }
+  document.documentElement.classList.toggle('dark',dark);
+  try{ if(TG){const bg=dark?'#151019':'#FFF6F4';TG.setBackgroundColor(bg);TG.setHeaderColor(bg);} }catch(e){}
+}
+
+/* ═══════════ События ═══════════ */
+document.addEventListener('click',e=>{
+  const el=e.target.closest('[data-a]'); if(!el)return;
+  const a=el.dataset.a; haptic('light');
+  switch(a){
+    case 'nav': setTab(el.dataset.tab); break;
+    case 'gear': openSettings(); break;
+    case 'quick': openDay(fmt(today())); break;
+    case 'tip-more': openPhase(); break;
+    case 'cal-prev': {const d=new Date(UI.calY,UI.calM-1,1);UI.calY=d.getFullYear();UI.calM=d.getMonth();renderCal();break;}
+    case 'cal-next': {const d=new Date(UI.calY,UI.calM+1,1);UI.calY=d.getFullYear();UI.calM=d.getMonth();renderCal();break;}
+    case 'cal-today': UI.calY=today().getFullYear();UI.calM=today().getMonth();renderCal();break;
+    case 'day': openDay(el.dataset.d); break;
+    case 'sheet-close': closeSheet(); break;
+    case 'flow': UI.draft.flow=+el.dataset.v; seg(el); break;
+    case 'mood': UI.draft.mood=el.dataset.v; seg(el); break;
+    case 'energy': UI.draft.energy=+el.dataset.v; seg(el); break;
+    case 'sym': {const v=el.dataset.v,i=UI.draft.syms.indexOf(v); if(i>=0)UI.draft.syms.splice(i,1);else UI.draft.syms.push(v); el.classList.toggle('on'); break;}
+    case 'period-add': {const ds=UI.sel; DB.periods=DB.periods.filter(p=>p.start!==ds); DB.periods.push({start:ds,len:DB.settings.periodLen}); save(); toast('Отмечено 🩸 Прогноз обновлён'); haptic('ok'); renderCurrent(); openDay(ds); break;}
+    case 'period-del': {const s=el.dataset.start; DB.periods=DB.periods.filter(p=>p.start!==s); save(); toast('Отметка убрана'); renderCurrent(); openDay(UI.sel); break;}
+    case 'save-day': {const ds=UI.sel,d=UI.draft;
+      if(!d.flow&&!d.mood&&!d.energy&&!d.syms.length&&!d.note.trim())delete DB.logs[ds];
+      else DB.logs[ds]={flow:d.flow,mood:d.mood,energy:d.energy,syms:d.syms,note:d.note.trim()};
+      save(); closeSheet(); renderCurrent(); toast('День сохранён 💗'); haptic('ok'); break;}
+    case 'ob-next': obGo(UI.ob+1); break;
+    case 'ob-back': obGo(UI.ob-1); break;
+    case 'ob-skip': DB.onboarded=true; DB.settings.name=UI.obData.name; save(); $('#ob').classList.remove('on'); renderCurrent(); toast('Настроить можно в ⚙️ в любой момент'); break;
+    case 'ob-done': {DB.settings.name=UI.obData.name; DB.settings.cycleLen=UI.obData.cycle; DB.settings.periodLen=UI.obData.period;
+      DB.periods=[{start:UI.obData.date,len:UI.obData.period}]; DB.onboarded=true; save(); $('#ob').classList.remove('on'); renderCurrent(); toast('Добро пожаловать в Bloom 🌸'); haptic('ok'); break;}
+    case 'p-copy': {if(!myStats().starts.length){toast('Сначала отметь хотя бы один цикл 🌱');break;} copyTxt(shareLink(),'Код-ссылка скопирована 📋'); break;}
+    case 'p-share': {if(!myStats().starts.length){toast('Сначала отметь хотя бы один цикл 🌱');break;}
+      const link=shareLink(), text='Мой цикл в Bloom 🌸 Открой ссылку — там видно, когда меня поддержать 💞';
+      const url='https://t.me/share/url?url='+encodeURIComponent(link)+'&text='+encodeURIComponent(text);
+      if(TG)TG.openTelegramLink(url); else copyTxt(link,'Ссылка скопирована — отправь партнёру 💌'); break;}
+    case 'p-add': {const v=$('#pin').value; if(!v.trim()){toast('Вставь код-ссылку партнёра');break;} if(addPartner(v)){$('#pin').value='';renderPartner();} break;}
+    case 'p-del': UI.delId=el.dataset.id; openConfirm('partner'); break;
+    case 'p-del-yes': DB.partners=DB.partners.filter(x=>x.id!==UI.delId); save(); closeSheet(); renderPartner(); toast('Партнёр удалён'); break;
+    case 'set-cycle': {DB.settings.cycleLen=clamp(DB.settings.cycleLen+ +el.dataset.d,21,45); $('#scv').textContent=DB.settings.cycleLen; save(); renderCurrent(); break;}
+    case 'set-period': {DB.settings.periodLen=clamp(DB.settings.periodLen+ +el.dataset.d,2,10); $('#spv').textContent=DB.settings.periodLen; save(); renderCurrent(); break;}
+    case 'theme': DB.settings.theme=el.dataset.v; save(); applyTheme(); el.parentElement.querySelectorAll('.chip').forEach(c=>c.classList.toggle('on',c===el)); break;
+    case 'mode': DB.settings.mode=el.dataset.v; save(); applyTheme(); el.parentElement.querySelectorAll('.chip').forEach(c=>c.classList.toggle('on',c===el)); break;
+    case 'export': {const data=JSON.stringify(DB,null,2);
+      try{const b=new Blob([data],{type:'application/json'});const u=URL.createObjectURL(b);const l=document.createElement('a');l.href=u;l.download='bloom-data.json';l.click();setTimeout(()=>URL.revokeObjectURL(u),3000);toast('Файл сохранён 📥');}
+      catch(err){copyTxt(data,'Данные скопированы в буфер 📋');} break;}
+    case 'reset': openConfirm('reset'); break;
+    case 'reset-yes': localStorage.removeItem(LS); location.reload(); break;
+    case 'about': openAbout(); break;
+    case 'plus': openPlus(); break;
+    case 'plus-open': {const bot=DB.bot.trim().replace('@','');
+      if(!bot){toast('Укажи username бота в настройках ⚙️');openSettings();break;}
+      const url='https://t.me/'+bot+'?start=plus';
+      if(TG)TG.openTelegramLink(url); else window.open(url,'_blank'); break;}
+  }
+});
+function seg(el){el.parentElement.querySelectorAll('.chip').forEach(c=>c.classList.toggle('on',c===el));}
+document.addEventListener('input',e=>{
+  const el=e.target.closest('[data-in]'); if(!el)return;
+  const k=el.dataset.in;
+  if(k==='note'&&UI.draft)UI.draft.note=el.value;
+  else if(k==='name'){DB.settings.name=el.value;save();}
+  else if(k==='bot'){DB.bot=el.value;save();}
+  else if(k==='ob-name')UI.obData.name=el.value;
+  else if(k==='ob-date')UI.obData.date=el.value||fmt(today());
+  else if(k==='ob-cycle'){UI.obData.cycle=+el.value;$('#ob-cv').textContent=el.value;}
+  else if(k==='ob-period'){UI.obData.period=+el.value;$('#ob-pv').textContent=el.value;}
+});
+$('#ov').addEventListener('click',e=>{if(e.target.id==='ov')closeSheet();});
+function obGo(n){
+  UI.ob=clamp(n,0,2);
+  document.querySelectorAll('.ob-step').forEach((s,i)=>s.classList.toggle('on',i===UI.ob));
+  document.querySelectorAll('.ob-dots i').forEach((d,i)=>d.classList.toggle('on',i===UI.ob));
+}
+
+/* ═══════════ Старт ═══════════ */
+(function init(){
+  if(TG){ try{TG.ready();TG.expand();}catch(e){}
+    try{TG.BackButton.onClick(()=>{ if($('#ov').classList.contains('on'))closeSheet(); else if(UI.tab!=='today')setTab('today'); });}catch(e){}
+    try{TG.onEvent('themeChanged',applyTheme);}catch(e){}
+  }
+  applyTheme();
+  // импорт партнёра из ссылки
+  if(location.hash.indexOf('#p=')===0){
+    if(addPartner(location.hash.slice(3),true)){toast('Цикл партнёра подключён 💞');UI.tab='partner';}
+    try{history.replaceState(null,'',location.pathname);}catch(e){}
+  }
+  const od=$('#ob-date'); od.value=fmt(today()); od.max=fmt(today());
+  if(!DB.onboarded){$('#ob').classList.add('on');}
+  setTab(UI.tab);
+})();
+</script>
 </body>
 </html>
