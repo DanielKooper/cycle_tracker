@@ -851,7 +851,7 @@ function renderMore(){
   h+='<div class="card"><div class="sec">👑 Bloom Plus</div>'+
    (DB.plus.packs.length?'<p class="muted" style="margin-bottom:10px">Активно: '+DB.plus.packs.map(function(p){var c=CATALOG.filter(function(x){return x.id===p;})[0];return c?c.e+' '+c.t:p;}).join(', ')+'</p>':'')+
    CATALOG.map(function(p){var own=has(p.id);
-     return '<button class="bp'+(own?' owned':'')+(p.best?' best':'')+'"'+(own?'':' data-a="buy" data-pack="'+p.id+'')+'>'+
+     return '<button class="bp'+(own?' owned':'')+(p.best?' best':'')+'"'+(own?'':' data-a="buy" data-pack="'+p.id+'"')+'>'+
       (p.best&&!own?'<span class="badge">ВЫГОДНО</span>':'')+'<span class="bpi">'+p.e+'</span>'+
       '<span class="bpt"><b>'+p.t+'</b><i>'+p.d+'</i></span>'+
       '<span class="bpp">'+(own?'✓ Куплено':(UI.busy===p.id?'<span class="spin"></span>':p.s+' ⭐'))+'</span></button>';}).join('')+
@@ -998,7 +998,7 @@ function openPlus(){
   if(DB.plus.packs.length)h+='<p class="muted" style="margin-bottom:12px">Активно: '+DB.plus.packs.map(function(p){var c=CATALOG.filter(function(x){return x.id===p;})[0];return c?c.e+' '+c.t:p;}).join(', ')+'</p>';
   h+='<p class="muted" style="margin-bottom:13px">Нажми на товар — счёт Telegram Stars откроется прямо здесь. База всегда бесплатна 💗</p>';
   h+=CATALOG.map(function(p){var own=has(p.id);
-    return '<button class="bp'+(own?' owned':'')+(p.best?' best':'')+'"'+(own?'':' data-a="buy" data-pack="'+p.id+'')+'>'+
+    return '<button class="bp'+(own?' owned':'')+(p.best?' best':'')+'"'+(own?'':' data-a="buy" data-pack="'+p.id+'"')+'>'+
      (p.best&&!own?'<span class="badge">ВЫГОДНО</span>':'')+'<span class="bpi">'+p.e+'</span>'+
      '<span class="bpt"><b>'+p.t+'</b><i>'+p.d+'</i></span><span class="bpp">'+(own?'✓ Куплено':(UI.busy===p.id?'<span class="spin"></span>':p.s+' ⭐'))+'</span></button>';}).join('');
   h+='<button class="btn btn-g btn-sm" data-a="restore">↻ Восстановить покупки</button>'+
