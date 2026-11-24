@@ -233,10 +233,15 @@ def tr(uid, key, **kwargs):
 
 
 def app_url_from_request():
-    if WEBAPP_URL:
-        return WEBAPP_URL.rstrip("/")
-    host = request.headers.get("X-Forwarded-Host") or request.host
-    return "https://" + host.rstrip("/")
+    url = WEBAPP_URL
+    if not url:
+        url = request.headers.get("X-Forwarded-Host") or request.host
+    url = url.strip().rstrip("/")
+    if url.startswith("http://"):
+        url = "https://" + url[len("http://"):]
+    elif not url.startswith("https://"):
+        url = "https://" + url
+    return url
 
 
 def open_kb(uid):
