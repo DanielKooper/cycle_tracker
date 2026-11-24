@@ -67,7 +67,7 @@
       var own = has(p.id);
       var isBusy = busy === p.id;
       h += '<button class="bp-item' + (own ? ' owned' : '') + (isBusy ? ' busy' : '') + (p.best ? ' best' : '') + '"' +
-challenge        (own ? '' : ' data-a="plus-buy" data-pack="' + p.id + '"') + '>' +
+        (own ? '' : ' data-a="plus-buy" data-pack="' + p.id + '"') + '>' +
         (p.best && !own ? '<span class="bp-badge">ВЫГОДНО</span>' : '') +
         '<span class="bp-ico">' + p.emoji + '</span>' +
         '<span class="bp-txt"><b>' + p.title + '</b><i>' + p.desc + '</i></span>' +
