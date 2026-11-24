@@ -351,6 +351,9 @@ def api_me():
     packs = sorted({i["p"] for i in store.get(str(user["id"]), [])})
     return jsonify(ok=True, packs=packs, lang=get_lang(user["id"]))
 
+@app.get("/api/config")
+def api_config():
+    return jsonify(ok=True, channel=CHANNEL_URL)
 
 @app.post("/api/telegram")
 def api_telegram():
