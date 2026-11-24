@@ -1032,14 +1032,33 @@ function apiBase(){return (location.protocol==='http:'||location.protocol==='htt
 function buy(pack){
   if(UI.busy)return;
   var init=TG&&TG.initData?TG.initData:'';
-  if(!TG||!init){toast('Покупки доступны внутри Telegram 🌸');return;}
+  if(!TG||!init){toast('Открой Bloom внутри Telegram 🌸');return;}
   if(!apiBase()){toast('Покупки доступны в онлайн-версии');return;}
   if(!TG.openInvoice){toast('Обнови Telegram до последней версии 📲');return;}
   UI.busy=pack;refreshPlus();haptic('light');
   fetch(apiBase()+'/api/invoice',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({pack:pack,initData:init})})
-   .then(function(r){return r.json();})
-   .then(function(j){
-     if(!j||!j.ok||!j.link){UI.busy=null;refreshPlus();toast('Не удалось создать счёт 😔');return;}
+   .then(function(r){return r.json().then(function(j){return {s:r.status,j:j};}).catch(function(){return {s:r.status,j:{}};});})
+   .then(function(res){
+     var j=res.j||{};
+     if(!j.ok||!j.link){
+       UI.busy=null;refreshPlus();haptic('err');
+       var why=j.detail||j.error||('HTTP '+res.s);
+       try{console.error('invoice failed',res.s,j);}catch(e){}
+       if(res.s===401){
+         toast('Подпись не прошла — перезайди в Bloom 🔄');
+         openSheet(head('🔐 Ошибка авторизации')+'<p class="muted" style="line-height:1.6">Сервер не смог проверить подпись Telegram.<br><br>'+
+          'Обычно это значит, что <b>BOT_TOKEN на сервере принадлежит другому боту</b>, не тому, из которого открыт Bloom.<br><br>'+
+          'Проверь: Railway → Variables → BOT_TOKEN, и открой приложение из того же бота, чей токен там записан.</p>'+
+          '<div style="height:14px"></div><button class="btn btn-s" data-a="close">Понятно</button>');
+       } else {
+         toast('Счёт не создан · подробности');
+         openSheet(head('💳 Telegram отклонил счёт')+'<p class="muted" style="margin-bottom:10px">Ответ сервера (HTTP '+res.s+'):</p>'+
+          '<div class="card" style="background:var(--surf2);word-break:break-word"><p style="font-weight:700;font-size:.85rem;line-height:1.5">'+esc(String(why))+'</p></div>'+
+          '<p class="tiny">Пришли этот текст — по нему сразу видно причину.</p>'+
+          '<div style="height:12px"></div><button class="btn btn-s" data-a="close">Закрыть</button>');
+       }
+       return;
+     }
      var done=false;
      var finish=function(status){
        if(done)return;done=true;UI.busy=null;

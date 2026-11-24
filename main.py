@@ -437,4 +437,47 @@ def handle_update(u):
 
 
 if __name__ == "__main__":
+# ══════════ ДИАГНОСТИКА АВТОРИЗАЦИИ ══════════
+def verify(init_data):
+    LAST_ERROR["time"] = int(time.time())
+    LAST_ERROR["method"] = "verify"
+    if not BOT_TOKEN:
+        LAST_ERROR["description"] = "AUTH: BOT_TOKEN пустой на сервере"
+        return None
+    if not init_data:
+        LAST_ERROR["description"] = "AUTH: initData не пришёл из приложения"
+        return None
+    try:
+        data = dict(urllib.parse.parse_qsl(init_data, keep_blank_values=True))
+        got = data.pop("hash", "")
+        if not got:
+            LAST_ERROR["description"] = "AUTH: в initData нет поля hash"
+            return None
+        check = "\n".join("%s=%s" % (k, data[k]) for k in sorted(data))
+        secret = hmac.new(b"WebAppData", BOT_TOKEN.encode(), hashlib.sha256).digest()
+        calc = hmac.new(secret, check.encode(), hashlib.sha256).hexdigest()
+        if not hmac.compare_digest(calc, got):
+            me = tg("getMe")
+            uname = me.get("result", {}).get("username") if me.get("ok") else "ТОКЕН НЕВАЛИДЕН"
+            LAST_ERROR["description"] = (
+                "AUTH: подпись не совпала. Сервер работает от бота @%s. "
+                "Открой Bloom именно из него, либо поправь BOT_TOKEN в Railway." % uname)
+            return None
+        age = int(time.time()) - int(data.get("auth_date", "0"))
+        if age > 86400:
+            LAST_ERROR["description"] = "AUTH: сессия устарела (%s сек). Закрой и открой Bloom заново." % age
+            return None
+        LAST_ERROR["description"] = "AUTH OK — подпись прошла"
+        return json.loads(data.get("user", "{}"))
+    except Exception as e:
+        LAST_ERROR["description"] = "AUTH: не удалось разобрать initData: %s" % e
+        return None
+
+
+@app.get("/api/whoami")
+def api_whoami():
+    res = tg("getMe")
+    if res.get("ok"):
+        return jsonify(ok=True, username=res["result"].get("username"), id=res["result"].get("id"))
+    return jsonify(ok=False, detail=res.get("description"))
     app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 8080)))
