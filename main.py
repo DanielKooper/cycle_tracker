@@ -290,10 +290,14 @@ def app_url_from_request():
 
 
 def open_kb(uid):
-    return {
-        "inline_keyboard": [
-            [{"text": tr(uid, "open"), "web_app": {"url": app_url_from_request()}}],
-            [{"text": tr(uid, "plus_btn"), "callback_data": "plus_menu"}],
+    rows = [
+        [{"text": tr(uid, "open"), "web_app": {"url": app_url_from_request()}}],
+        [{"text": tr(uid, "plus_btn"), "callback_data": "plus_menu"}],
+    ]
+    if CHANNEL_URL:
+        label = {"ru": "📣 Наш канал", "en": "📣 Our channel", "uk": "📣 Наш канал"}.get(get_lang(uid), "📣 Our channel")
+        rows.append([{"text": label, "url": CHANNEL_URL}])
+    return {"inline_keyboard": rows}
         ]
     }
 
