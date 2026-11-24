@@ -13,7 +13,7 @@ from telegram.ext import (Application, CommandHandler, CallbackQueryHandler,
                           PreCheckoutQueryHandler, MessageHandler, ContextTypes, filters)
 
 # ── ЗАПОЛНИ ЭТИ ДВЕ СТРОКИ ──
-BOT_TOKEN = "5472255249:AAFVtNYCNgTDZ7GiiGOqh5NJpJKL7sasDa4"
+BOT_TOKEN = "8794938495:AAE8oxGSeKQnEdB4WW_QSeh0MXMH3pau5Dg"
 WEBAPP_URL = "cycletracker-production-370cc7a4.up.railway.app"   # ссылка из Railway → Settings → Domains
 # ────────────────────────────
 
