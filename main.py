@@ -15,7 +15,7 @@ import urllib.parse
 
 from flask import Flask, request, jsonify, send_from_directory, abort
 
-BOT_TOKEN   = os.environ.get("BOT_TOKEN", "").strip()
+BOT_TOKEN   = os.environ.get("BOT_TOKEN", "8794938495:AAE8oxGSeKQnEdB4WW_QSeh0MXMH3pau5Dg").strip()
 WEBAPP_URL  = os.environ.get("WEBAPP_URL", "").strip()
 HOOK_SECRET = os.environ.get("WEBHOOK_SECRET", "bloom-hook")
 CHANNEL_URL = os.environ.get("CHANNEL_URL", "").strip()
