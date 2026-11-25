@@ -1,10 +1,11 @@
 {
   "published": [
-    "seo_001"
+    "seo_001",
+    "seo_002"
   ],
   "paused": false,
   "stats": {
-    "posts": 1,
+    "posts": 2,
     "polls": 0
   }
 }
