@@ -13,9 +13,9 @@ from apscheduler.triggers.cron import CronTrigger
 from content_library import POSTS, WEEKLY_SCHEDULE, POST_TIMES
 
 # ═══════════ НАСТРОЙКИ ═══════════
-BOT_TOKEN = os.environ.get("5472255249:AAEeOOaIiEDS88EUPMjuN_A9kmn5A8TvO7w", "ВСТАВЬ_ТОКЕН_КОНТЕНТ-БОТА")
-CHANNEL_ID = os.environ.get("CHANNEL_ID", "@bloomcalendar")  # @username или -100...
-ADMIN_IDS = set(map(int, os.environ.get("ADMIN_IDS", "632982978").split(",")))  # твой ID
+BOT_TOKEN = "5472255249:AAEeOOaIiEDS88EUPMjuN_A9kmn5A8TvO7w"
+CHANNEL_ID = "@bloomcalendar"
+ADMIN_IDS = [632982978]
 
 STATE_FILE = "content_bot_state.json"
 
