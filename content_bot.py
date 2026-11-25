@@ -109,7 +109,6 @@ async def send_to_channel(context: ContextTypes.DEFAULT_TYPE, post=None):
         await context.bot.send_message(
             chat_id=chat_id,
             text=full_text,
-            parse_mode="HTML",
             reply_markup=keyboard,
             disable_web_page_preview=True,
         )
