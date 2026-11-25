@@ -5,7 +5,17 @@ from datetime import datetime
 from apscheduler.schedulers.background import BackgroundScheduler
 from apscheduler.triggers.cron import CronTrigger
 import requests
+import sys
+import logging
 
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+    stream=sys.stdout
+)
+logger = logging.getLogger(__name__)
+
+logger.info("=== content_bot.py загружается ===")
 # ═══════════ НАСТРОЙКИ ═══════════
 BOT_TOKEN = os.environ.get('CONTENT_BOT_TOKEN')
 CHANNEL_ID = os.environ.get('CHANNEL_ID')
