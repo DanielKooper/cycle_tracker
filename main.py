@@ -1,8 +1,7 @@
-# ══════════════════════════════════════════════════════════════
-#  main.py — Bloom 🌸
-#  WebApp + покупки Stars + команды бота + канал + диагностика
-#  Railway Start Command: gunicorn -w 1 -b 0.0.0.0:$PORT main:app
-# ══════════════════════════════════════════════════════════════
+# -*- coding: utf-8 -*-
+# main.py — Bloom 🌸 · WebApp + Stars + команды + автосинхронизация кнопки меню
+# Railway Start Command: gunicorn -w 1 -b 0.0.0.0:$PORT main:app
+
 import os
 import json
 import hmac
@@ -15,6 +14,8 @@ import urllib.parse
 
 from flask import Flask, request, jsonify, send_from_directory, abort
 
+BUILD = "bloom-3"
+
 BOT_TOKEN   = os.environ.get("BOT_TOKEN", "").strip()
 WEBAPP_URL  = os.environ.get("WEBAPP_URL", "").strip()
 HOOK_SECRET = os.environ.get("WEBHOOK_SECRET", "bloom-hook")
@@ -25,6 +26,7 @@ STORE_PATH = os.path.join(DATA_DIR, "purchases.json")
 PREFS_PATH = os.path.join(DATA_DIR, "prefs.json")
 
 LAST_ERROR = {"time": 0, "method": "", "description": ""}
+MENU_STATE = {"synced": 0, "url": "", "result": ""}
 
 PACKS = {
     "analytics": {"emoji": "📊", "title": "Глубокая аналитика",
@@ -37,8 +39,6 @@ PACKS = {
                   "desc": "Все функции Bloom Plus сразу", "stars": 149},
 }
 
-# Старые/альтернативные имена товаров → текущие ключи.
-# Спасает, если фронтенд из кэша шлёт прежние идентификаторы.
 PACK_ALIAS = {
     "stats": "analytics", "premium_stats": "analytics",
     "ai": "analytics", "premium_ai": "analytics",
@@ -55,8 +55,8 @@ TEXT = {
                   "Всё хранится только на твоём устройстве.\nНажми кнопку ниже, чтобы открыть приложение 👇"),
         "help": ("🌸 <b>Команды Bloom</b>\n\n/start — открыть приложение\n/plus — дополнения за звёзды ⭐\n"
                  "/care — советы партнёру\n/balance — баланс звёзд бота\n/transactions — последние операции\n"
-                 "/refund — возврат последней покупки\n/language — язык бота\n/privacy — приватность\n\n"
-                 "Bloom не заменяет консультацию врача."),
+                 "/refund — возврат последней покупки\n/language — язык бота\n/privacy — приватность\n"
+                 "/version — версия приложения\n\nBloom не заменяет консультацию врача."),
         "plus": ("👑 <b>Bloom Plus</b>\n\nДополнения покупаются прямо в приложении за Telegram Stars ⭐\n"
                  "Нажми на нужный товар — счёт откроется поверх WebApp."),
         "care": ("💞 <b>Как поддержать партнёршу</b>\n\n• Спроси: «Чем помочь?» вместо «Что случилось?»\n"
@@ -69,18 +69,19 @@ TEXT = {
         "privacy": ("🔒 <b>Приватность Bloom</b>\n\n• Записи цикла хранятся на устройстве пользователя.\n"
                     "• Партнёр получает только ту код-ссылку, которую отправили вручную.\n"
                     "• В код-ссылке нет заметок и симптомов, только снимок цикла.\n"
+                    "• Интимные записи не передаются никогда.\n"
                     "• Покупки привязаны к Telegram-аккаунту.\n\nBloom — справочный трекер, не медицинский сервис."),
         "language": "Выбери язык бота:",
         "lang_set": "Язык изменён 🌸",
         "balance_empty": "Пока нет звёзд на балансе 🤍",
         "balance": "⭐ Баланс бота: <b>{amount}</b> Stars",
-        "balance_err": "Не удалось получить баланс 😔 Возможно, метод ещё недоступен для этого бота.",
+        "balance_err": "Не удалось получить баланс 😔",
         "transactions_empty": "Операций пока нет 🤍",
         "transactions_err": "Не удалось получить операции 😔",
         "refund_none": "У тебя нет покупок для возврата 🤍",
         "refund_ok": "✅ Возврат оформлен — звёзды вернулись на баланс ⭐",
         "refund_err": "Не удалось оформить возврат 😔 Попробуй позже.",
-        "paid": "✅ <b>Оплата получена!</b> Спасибо 💗\n\n{emoji} <b>{title}</b> уже открыт в приложении — вернись в Bloom и пользуйся 👑",
+        "paid": "✅ <b>Оплата получена!</b> Спасибо 💗\n\n{emoji} <b>{title}</b> уже открыт в приложении — вернись в Bloom 👑",
         "open": "🌸 Открыть Bloom",
         "plus_btn": "👑 Bloom Plus · за ⭐",
         "channel_btn": "📣 Наш канал",
@@ -89,31 +90,31 @@ TEXT = {
     "en": {
         "start": ("Hi! I'm <b>Bloom</b> 🌸\nYour personal cycle and care tracker.\n\n"
                   "Everything stays on your device.\nTap below to open the app 👇"),
-        "help": ("🌸 <b>Bloom commands</b>\n\n/start — open the app\n/plus — optional Star upgrades ⭐\n"
-                 "/care — partner support tips\n/balance — bot Stars balance\n/transactions — recent transactions\n"
-                 "/refund — refund last purchase\n/language — bot language\n/privacy — privacy\n\n"
-                 "Bloom is not a substitute for medical advice."),
-        "plus": ("👑 <b>Bloom Plus</b>\n\nOptional upgrades are purchased inside the app with Telegram Stars ⭐\n"
-                 "Tap a product — the invoice opens right over the WebApp."),
-        "care": ("💞 <b>How to support your partner</b>\n\n• Ask \"How can I help?\" instead of \"What happened?\"\n"
-                 "• During period: warmth, rest, treats, less load.\n• Follicular phase: dates, ideas, activity.\n"
-                 "• Ovulation: romance and important talks.\n• Luteal phase: patience, food, hugs, no arguments.\n"
-                 "• If late: don't panic, stay close, offer help.\n\nThe app gives more precise phase-based tips."),
-        "privacy": ("🔒 <b>Bloom privacy</b>\n\n• Cycle logs stay on the user's device.\n"
-                    "• A partner only gets the share-link you send manually.\n"
-                    "• The share-link contains a cycle snapshot, not notes or symptoms.\n"
-                    "• Purchases are tied to the Telegram account.\n\nBloom is a reference tracker, not a medical service."),
+        "help": ("🌸 <b>Bloom commands</b>\n\n/start — open the app\n/plus — Star upgrades ⭐\n"
+                 "/care — partner tips\n/balance — Stars balance\n/transactions — recent transactions\n"
+                 "/refund — refund last purchase\n/language — language\n/privacy — privacy\n"
+                 "/version — app version\n\nBloom is not a substitute for medical advice."),
+        "plus": ("👑 <b>Bloom Plus</b>\n\nUpgrades are purchased inside the app with Telegram Stars ⭐\n"
+                 "Tap a product — the invoice opens over the WebApp."),
+        "care": ("💞 <b>How to support your partner</b>\n\n• Ask how you can help instead of what happened.\n"
+                 "• Period: warmth, rest, treats, less load.\n• Follicular: dates, ideas, activity.\n"
+                 "• Ovulation: romance and important talks.\n• Luteal: patience, food, hugs.\n"
+                 "• If late: stay close, offer help.\n\nThe app gives phase-based tips."),
+        "privacy": ("🔒 <b>Bloom privacy</b>\n\n• Logs stay on the user's device.\n"
+                    "• A partner only gets the link you send manually.\n"
+                    "• Intimate records are never shared.\n"
+                    "• Purchases are tied to the Telegram account."),
         "language": "Choose bot language:",
         "lang_set": "Language updated 🌸",
         "balance_empty": "No Stars yet 🤍",
         "balance": "⭐ Bot balance: <b>{amount}</b> Stars",
-        "balance_err": "Couldn't fetch balance 😔 The method may not be available for this bot yet.",
+        "balance_err": "Couldn't fetch balance 😔",
         "transactions_empty": "No transactions yet 🤍",
         "transactions_err": "Couldn't fetch transactions 😔",
         "refund_none": "No purchases to refund 🤍",
         "refund_ok": "✅ Refund completed — Stars are back ⭐",
-        "refund_err": "Couldn't process refund 😔 Try later.",
-        "paid": "✅ <b>Payment received!</b> Thank you 💗\n\n{emoji} <b>{title}</b> is unlocked in the app — return to Bloom 👑",
+        "refund_err": "Couldn't process refund 😔",
+        "paid": "✅ <b>Payment received!</b> Thank you 💗\n\n{emoji} <b>{title}</b> is unlocked — return to Bloom 👑",
         "open": "🌸 Open Bloom",
         "plus_btn": "👑 Bloom Plus · Stars ⭐",
         "channel_btn": "📣 Our channel",
@@ -121,35 +122,32 @@ TEXT = {
     },
     "uk": {
         "start": ("Привіт! Я <b>Bloom</b> 🌸\nТвій особистий трекер циклу та турботи.\n\n"
-                  "Усе зберігається лише на твоєму пристрої.\nНатисни кнопку нижче, щоб відкрити застосунок 👇"),
+                  "Усе зберігається лише на твоєму пристрої.\nНатисни кнопку нижче 👇"),
         "help": ("🌸 <b>Команди Bloom</b>\n\n/start — відкрити застосунок\n/plus — доповнення за зірки ⭐\n"
-                 "/care — поради партнеру\n/balance — баланс зірок бота\n/transactions — останні операції\n"
-                 "/refund — повернення останньої покупки\n/language — мова бота\n/privacy — приватність\n\n"
-                 "Bloom не замінює консультацію лікаря."),
-        "plus": ("👑 <b>Bloom Plus</b>\n\nДоповнення купуються прямо в застосунку за Telegram Stars ⭐\n"
-                 "Натисни на потрібний товар — рахунок відкриється поверх WebApp."),
-        "care": ("💞 <b>Як підтримати партнерку</b>\n\n• Запитай: «Чим допомогти?» замість «Що сталося?»\n"
-                 "• Під час менструації — тепло, відпочинок, смачне, менше навантаження.\n"
-                 "• У фолікулярну фазу — побачення, ідеї, активність.\n"
-                 "• В овуляцію — романтика й важливі розмови.\n"
-                 "• У лютеїнову фазу — терпіння, їжа, обійми, без суперечок.\n"
-                 "• При затримці — не нагнітай, будь поруч і запропонуй допомогу.\n\n"
-                 "У застосунку поради точніші: вони залежать від фази циклу."),
-        "privacy": ("🔒 <b>Приватність Bloom</b>\n\n• Записи циклу зберігаються на пристрої користувача.\n"
-                    "• Партнер отримує лише те посилання-код, яке надіслали вручну.\n"
-                    "• У посиланні-коді немає нотаток і симптомів, лише знімок циклу.\n"
-                    "• Покупки прив'язані до Telegram-акаунта.\n\nBloom — довідковий трекер, не медичний сервіс."),
+                 "/care — поради партнеру\n/balance — баланс зірок\n/transactions — операції\n"
+                 "/refund — повернення\n/language — мова\n/privacy — приватність\n"
+                 "/version — версія\n\nBloom не замінює консультацію лікаря."),
+        "plus": ("👑 <b>Bloom Plus</b>\n\nДоповнення купуються в застосунку за Telegram Stars ⭐\n"
+                 "Натисни на товар — рахунок відкриється поверх WebApp."),
+        "care": ("💞 <b>Як підтримати партнерку</b>\n\n• Запитай «чим допомогти?» замість «що сталося?»\n"
+                 "• Менструація — тепло, відпочинок, смачне.\n• Фолікулярна — побачення, ідеї.\n"
+                 "• Овуляція — романтика й важливі розмови.\n• Лютеїнова — терпіння, їжа, обійми.\n"
+                 "• Затримка — будь поруч, запропонуй допомогу."),
+        "privacy": ("🔒 <b>Приватність Bloom</b>\n\n• Записи на пристрої користувача.\n"
+                    "• Партнер отримує лише надіслане посилання.\n"
+                    "• Інтимні записи не передаються ніколи.\n"
+                    "• Покупки прив'язані до акаунта."),
         "language": "Обери мову бота:",
         "lang_set": "Мову змінено 🌸",
-        "balance_empty": "Поки немає зірок на балансі 🤍",
+        "balance_empty": "Поки немає зірок 🤍",
         "balance": "⭐ Баланс бота: <b>{amount}</b> Stars",
-        "balance_err": "Не вдалося отримати баланс 😔 Можливо, метод ще недоступний для цього бота.",
+        "balance_err": "Не вдалося отримати баланс 😔",
         "transactions_empty": "Операцій поки немає 🤍",
         "transactions_err": "Не вдалося отримати операції 😔",
-        "refund_none": "У тебе немає покупок для повернення 🤍",
-        "refund_ok": "✅ Повернення оформлено — зірки повернулися на баланс ⭐",
-        "refund_err": "Не вдалося оформити повернення 😔 Спробуй пізніше.",
-        "paid": "✅ <b>Оплату отримано!</b> Дякую 💗\n\n{emoji} <b>{title}</b> уже відкрито в застосунку — повернися в Bloom 👑",
+        "refund_none": "Немає покупок для повернення 🤍",
+        "refund_ok": "✅ Повернення оформлено ⭐",
+        "refund_err": "Не вдалося оформити повернення 😔",
+        "paid": "✅ <b>Оплату отримано!</b> Дякую 💗\n\n{emoji} <b>{title}</b> уже відкрито — повернися в Bloom 👑",
         "open": "🌸 Відкрити Bloom",
         "plus_btn": "👑 Bloom Plus · за ⭐",
         "channel_btn": "📣 Наш канал",
@@ -204,6 +202,37 @@ def tg(method, payload=None):
         return {"ok": False, "description": str(e)}
 
 
+def normalize_url(url):
+    url = (url or "").strip().rstrip("/")
+    if url.startswith("http://"):
+        url = "https://" + url[len("http://"):]
+    elif url and not url.startswith("https://"):
+        url = "https://" + url
+    return url
+
+
+def app_url_from_request():
+    url = WEBAPP_URL
+    if not url:
+        url = request.headers.get("X-Forwarded-Host") or request.host
+    return normalize_url(url)
+
+
+def sync_menu_button(url=None):
+    target = normalize_url(url or WEBAPP_URL)
+    if not target or not BOT_TOKEN:
+        MENU_STATE["result"] = "WEBAPP_URL или BOT_TOKEN не заданы"
+        return MENU_STATE
+    res = tg("setChatMenuButton", {
+        "menu_button": {"type": "web_app", "text": "🌸 Bloom", "web_app": {"url": target}}
+    })
+    MENU_STATE["synced"] = int(time.time())
+    MENU_STATE["url"] = target
+    MENU_STATE["result"] = "ok" if res.get("ok") else str(res.get("description"))
+    app.logger.info("menu button → %s (%s)", target, MENU_STATE["result"])
+    return MENU_STATE
+
+
 def verify(init_data):
     LAST_ERROR["time"] = int(time.time())
     LAST_ERROR["method"] = "verify"
@@ -229,11 +258,11 @@ def verify(init_data):
             LAST_ERROR["method"] = "verify"
             LAST_ERROR["description"] = (
                 "AUTH: подпись не совпала. Сервер работает от бота @%s. "
-                "Открой Bloom именно из него, либо поправь BOT_TOKEN в Railway." % uname)
+                "Открой Bloom именно из него, либо поправь BOT_TOKEN." % uname)
             return None
         age = int(time.time()) - int(data.get("auth_date", "0"))
         if age > 86400:
-            LAST_ERROR["description"] = "AUTH: сессия устарела (%s сек). Закрой и открой Bloom заново." % age
+            LAST_ERROR["description"] = "AUTH: сессия устарела (%s сек). Открой Bloom заново." % age
             return None
         LAST_ERROR["description"] = "AUTH OK — подпись прошла"
         return json.loads(data.get("user", "{}"))
@@ -243,8 +272,7 @@ def verify(init_data):
 
 
 def get_lang(uid):
-    prefs = _load(PREFS_PATH)
-    return prefs.get(str(uid), "ru")
+    return _load(PREFS_PATH).get(str(uid), "ru")
 
 
 def set_lang(uid, lang):
@@ -262,18 +290,6 @@ def tr(uid, key, **kwargs):
     return text.format(**kwargs) if kwargs else text
 
 
-def app_url_from_request():
-    url = WEBAPP_URL
-    if not url:
-        url = request.headers.get("X-Forwarded-Host") or request.host
-    url = url.strip().rstrip("/")
-    if url.startswith("http://"):
-        url = "https://" + url[len("http://"):]
-    elif not url.startswith("https://"):
-        url = "https://" + url
-    return url
-
-
 def open_kb(uid):
     rows = [
         [{"text": tr(uid, "open"), "web_app": {"url": app_url_from_request()}}],
@@ -281,8 +297,6 @@ def open_kb(uid):
     ]
     if CHANNEL_URL.startswith("https://t.me/") or CHANNEL_URL.startswith("https://telegram.me/"):
         rows.append([{"text": tr(uid, "channel_btn"), "url": CHANNEL_URL}])
-    elif CHANNEL_URL:
-        app.logger.error("CHANNEL_URL invalid, skipped: %s", CHANNEL_URL)
     return {"inline_keyboard": rows}
 
 
@@ -301,10 +315,37 @@ def statics(p):
 @app.after_request
 def no_cache(resp):
     p = request.path
-    if p == "/" or p.endswith(".html") or p.endswith(".js") or p.endswith(".css"):
+    if p == "/" or p.endswith(".html") or p.endswith(".js") or p.endswith(".css") or p.startswith("/api/"):
         resp.headers["Cache-Control"] = "no-store, no-cache, must-revalidate, max-age=0"
         resp.headers["Pragma"] = "no-cache"
+        resp.headers["Expires"] = "0"
+        resp.headers.pop("ETag", None)
+        resp.headers.pop("Last-Modified", None)
     return resp
+
+
+@app.get("/api/version")
+def api_version():
+    path = os.path.join("webapp", "index.html")
+    info = {"exists": os.path.exists(path), "bytes": 0, "v3": False,
+            "period_end": False, "live_ring": False, "mtime": 0}
+    try:
+        with open(path, encoding="utf-8") as f:
+            src = f.read()
+        info["bytes"] = len(src)
+        info["v3"] = "Bloom v3" in src
+        info["period_end"] = "endopen" in src
+        info["live_ring"] = "ringFit" in src
+        info["mtime"] = int(os.path.getmtime(path))
+    except Exception as e:
+        info["error"] = str(e)
+    return jsonify(ok=True, build=BUILD, webapp_url=WEBAPP_URL, menu=MENU_STATE, index=info)
+
+
+@app.get("/api/syncmenu")
+def api_syncmenu():
+    url = request.args.get("url") or WEBAPP_URL
+    return jsonify(ok=True, menu=sync_menu_button(url))
 
 
 @app.post("/api/invoice")
@@ -313,17 +354,14 @@ def api_invoice():
     user = verify(body.get("initData", ""))
     if not user:
         return jsonify(ok=False, error="auth", detail=LAST_ERROR["description"]), 401
-
     raw = str(body.get("pack") or "").strip()
     key = PACK_ALIAS.get(raw, raw)
     pack = PACKS.get(key)
     if not pack:
         known = ", ".join(sorted(PACKS))
-        app.logger.error("Unknown pack '%s' — server knows: %s", raw, known)
         detail = ("Приложение прислало товар «%s», сервер знает только: %s. "
-                  "Закрой и открой приложение заново (сброс кэша)." % (raw or "пусто", known))
+                  "Закрой и открой приложение заново." % (raw or "пусто", known))
         return jsonify(ok=False, error="pack", got=raw, have=sorted(PACKS), detail=detail), 400
-
     res = tg("createInvoiceLink", {
         "title": "Bloom Plus · " + pack["title"],
         "description": pack["desc"],
@@ -350,7 +388,7 @@ def api_me():
 
 @app.get("/api/config")
 def api_config():
-    return jsonify(ok=True, channel=CHANNEL_URL)
+    return jsonify(ok=True, channel=CHANNEL_URL, build=BUILD)
 
 
 @app.get("/api/lasterror")
@@ -439,7 +477,19 @@ def handle_update(u):
         return
 
     if text.startswith("/start"):
+        if int(time.time()) - MENU_STATE["synced"] > 600:
+            threading.Thread(target=sync_menu_button, daemon=True).start()
         send(chat, tr(uid, "start"), open_kb(uid))
+        return
+    if text.startswith("/version"):
+        v = api_version().get_json()
+        i = v["index"]
+        send(chat, "🧩 <b>Версия</b>\n\nСервер: <b>%s</b>\nФайл v3: <b>%s</b>\nОтметка окончания: <b>%s</b>\n"
+                   "Живое кольцо: <b>%s</b>\nРазмер: %s байт\nURL: %s" % (
+                       v["build"], "да" if i["v3"] else "НЕТ",
+                       "да" if i["period_end"] else "НЕТ",
+                       "да" if i["live_ring"] else "НЕТ",
+                       i["bytes"], esc_url(v["webapp_url"])))
         return
     if text.startswith("/help"):
         send(chat, tr(uid, "help"), open_kb(uid))
@@ -474,7 +524,7 @@ def handle_update(u):
         if not items:
             send(chat, tr(uid, "transactions_empty"))
             return
-        lines = ["🧾 <b>Recent transactions</b>\n"]
+        lines = ["🧾 <b>Последние операции</b>\n"]
         for t in items:
             date = t.get("date", 0)
             day = time.strftime("%Y-%m-%d", time.gmtime(date)) if date else "?"
@@ -501,6 +551,12 @@ def handle_update(u):
     if text:
         send(chat, tr(uid, "unknown"), open_kb(uid))
 
+
+def esc_url(s):
+    return (s or "—").replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
+
+
+threading.Thread(target=sync_menu_button, daemon=True).start()
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 8080)))
