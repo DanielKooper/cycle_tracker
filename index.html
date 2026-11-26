@@ -83,15 +83,30 @@ h1.title{font-size:1.28rem;font-weight:800;letter-spacing:-.5px;margin:1px 0 13p
 .chip.on{background:linear-gradient(100deg,var(--a1),var(--a2));border-color:transparent;color:#fff}
 .chip .k{width:8px;height:8px;border-radius:50%;flex-shrink:0}
 .seg{display:flex;gap:6px}.seg .chip{flex:1;justify-content:center;padding:10px 4px}
-/* ════════ КОЛЬЦО ════════ */
+/* ════════ КОЛЬЦО (АДАПТИВНОЕ) ════════ */
 .hero{display:flex;flex-direction:column;align-items:center;text-align:center;padding:24px var(--pad)}
-.ringbox{position:relative;width:252px;height:252px;cursor:pointer}
-.ringbox svg{transform:rotate(-90deg);filter:drop-shadow(0 0 16px rgba(255,77,141,calc(.4*var(--glow))))}
+.ringbox{position:relative;width:260px;height:260px;cursor:pointer;margin:0 auto}
+.ringbox svg{transform:rotate(-90deg);filter:drop-shadow(0 0 16px rgba(255,77,141,calc(.4*var(--glow))));width:100%;height:100%}
 .rfg{transition:stroke-dashoffset 1.05s cubic-bezier(.22,1,.36,1)}
-.rc{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px}
-.rc-l{font-size:.62rem;font-weight:800;letter-spacing:2.4px;color:var(--mut);text-transform:uppercase}
+.rc{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px}
+.rc-l{font-size:.7rem;font-weight:800;letter-spacing:2px;color:var(--mut);text-transform:uppercase}
 .rc-n{font-size:4rem;font-weight:800;line-height:1;letter-spacing:-3px;background:linear-gradient(160deg,var(--ink),var(--accInk));-webkit-background-clip:text;background-clip:text;color:transparent}
-.rc-s{font-size:.76rem;font-weight:700;color:var(--mut)}
+.rc-s{font-size:.8rem;font-weight:700;color:var(--mut)}
+
+/* ════════ АДАПТАЦИЯ ПОД ТЕЛЕФОНЫ ════════ */
+@media (max-width:480px){
+  .ringbox{width:220px;height:220px}
+  .rc-n{font-size:3.2rem;letter-spacing:-2px}
+  .rc-l{font-size:.65rem;letter-spacing:1.5px}
+  .rc-s{font-size:.75rem}
+}
+@media (max-width:360px){
+  .ringbox{width:190px;height:190px}
+  .rc-n{font-size:2.8rem;letter-spacing:-1px}
+  .rc-l{font-size:.6rem;letter-spacing:1px}
+  .rc-s{font-size:.7rem}
+}
+
 .pchip{display:inline-flex;align-items:center;gap:7px;margin-top:15px;padding:9px 16px;border-radius:99px;font-weight:800;font-size:.85rem;background:var(--accSoft);color:var(--accInk)}
 .cd{margin-top:9px;font-size:.86rem;font-weight:600;color:var(--mut)}
 .cd b{color:var(--ink)}
@@ -262,7 +277,7 @@ nav{position:fixed;bottom:0;left:0;right:0;z-index:60;border-top:1px solid var(-
 .odots i.on{background:var(--acc);width:22px;border-radius:4px}
 .os{display:none}.os.on{display:block;animation:rise .3s ease}
 .rv{text-align:center;font-size:1.8rem;font-weight:800;color:var(--accInk)}
-@media (max-width:380px){.qa{grid-template-columns:repeat(2,1fr)}.themes{grid-template-columns:repeat(2,1fr)}.rc-n{font-size:3.2rem}.ringbox{width:216px;height:216px}}
+@media (max-width:380px){.qa{grid-template-columns:repeat(2,1fr)}.themes{grid-template-columns:repeat(2,1fr)}}
 @media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
 </style>
 </head>
@@ -578,7 +593,7 @@ function renderToday(){
   else if(m.late>0)count='Ожидалось <b>'+fNice(m.next)+'</b>';
   else if(m.until===0)count='Менструация ожидается <b>сегодня</b>';
   else count='Менструация через <b>'+m.until+' '+plural(m.until,'день','дня','дней')+'</b> · '+fNice(m.next);
-  h+='<div class="card hero glass"><div class="ringbox" data-a="well" data-d="'+fmt(t)+'">'+ring(252,DB.settings.ringW,m.progress)+
+  h+='<div class="card hero glass"><div class="ringbox" data-a="well" data-d="'+fmt(t)+'">'+ring(260,DB.settings.ringW,m.progress)+
      '<div class="rc">'+center+'</div></div>'+
      '<div class="pchip" style="background:color-mix(in srgb,'+ph.c+' 20%,var(--surf));color:'+ph.c+'">'+ph.i+' '+ph.n+'</div>'+
      '<div class="cd">'+count+'</div></div>';
@@ -851,7 +866,7 @@ function renderMore(){
   h+='<div class="card"><div class="sec">👑 Bloom Plus</div>'+
    (DB.plus.packs.length?'<p class="muted" style="margin-bottom:10px">Активно: '+DB.plus.packs.map(function(p){var c=CATALOG.filter(function(x){return x.id===p;})[0];return c?c.e+' '+c.t:p;}).join(', ')+'</p>':'')+
    CATALOG.map(function(p){var own=has(p.id);
-     return '<button class="bp'+(own?' owned':'')+(p.best?' best':'')+'"'+(own?'':' data-a="buy" data-pack="'+p.id+'')+'>'+
+     return '<button class="bp'+(own?' owned':'')+(p.best?' best':'')+'"'+(own?'':' data-a="buy" data-pack="'+p.id+'')+'">'+
       (p.best&&!own?'<span class="badge">ВЫГОДНО</span>':'')+'<span class="bpi">'+p.e+'</span>'+
       '<span class="bpt"><b>'+p.t+'</b><i>'+p.d+'</i></span>'+
       '<span class="bpp">'+(own?'✓ Куплено':(UI.busy===p.id?'<span class="spin"></span>':p.s+' ⭐'))+'</span></button>';}).join('')+
@@ -998,7 +1013,7 @@ function openPlus(){
   if(DB.plus.packs.length)h+='<p class="muted" style="margin-bottom:12px">Активно: '+DB.plus.packs.map(function(p){var c=CATALOG.filter(function(x){return x.id===p;})[0];return c?c.e+' '+c.t:p;}).join(', ')+'</p>';
   h+='<p class="muted" style="margin-bottom:13px">Нажми на товар — счёт Telegram Stars откроется прямо здесь. База всегда бесплатна 💗</p>';
   h+=CATALOG.map(function(p){var own=has(p.id);
-    return '<button class="bp'+(own?' owned':'')+(p.best?' best':'')+'"'+(own?'':' data-a="buy" data-pack="'+p.id+'')+'>'+
+    return '<button class="bp'+(own?' owned':'')+(p.best?' best':'')+'"'+(own?'':' data-a="buy" data-pack="'+p.id+'')+'">'+
      (p.best&&!own?'<span class="badge">ВЫГОДНО</span>':'')+'<span class="bpi">'+p.e+'</span>'+
      '<span class="bpt"><b>'+p.t+'</b><i>'+p.d+'</i></span><span class="bpp">'+(own?'✓ Куплено':(UI.busy===p.id?'<span class="spin"></span>':p.s+' ⭐'))+'</span></button>';}).join('');
   h+='<button class="btn btn-g btn-sm" data-a="restore">↻ Восстановить покупки</button>'+
