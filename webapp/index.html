@@ -384,6 +384,8 @@ nav{position:fixed;bottom:0;left:0;right:0;z-index:60;border-top:1px solid var(-
 
 <div id="toast"></div>
 
+<input type="file" id="importfile" accept=".json,application/json" style="display:none">
+
 <script>
 (function(){
 'use strict';
@@ -889,6 +891,44 @@ function openExport(){
   h+='<p class="tiny" style="margin-top:12px">На телефоне выбирай «Поделиться» — в меню есть «Сохранить в Файлы». «Скачать» в WebApp часто молча не работает, поэтому и дан выбор.</p>';
   openSheet(h);
 }
+function openImport(){
+  var h=head('📤 Импорт данных');
+  h+='<p class="muted" style="margin-bottom:13px">Загрузи файл <b>bloom-data.json</b>, который ты ранее экспортировал. <b>Все текущие данные будут заменены.</b></p>';
+  h+='<button class="btn btn-p" data-a="choosefile">📁 Выбрать файл</button>';
+  h+='<p class="tiny" style="margin-top:12px">После импорта приложение перезагрузится с новыми данными.</p>';
+  openSheet(h);
+}
+function importData(file){
+  var reader=new FileReader();
+  reader.onload=function(e){
+    try{
+      var data=JSON.parse(e.target.result);
+      // Валидация структуры
+      if(!data.periods||!Array.isArray(data.periods))throw new Error('Неверная структура: нет periods');
+      if(!data.logs||typeof data.logs!=='object')throw new Error('Неверная структура: нет logs');
+      if(!data.intimacy||!Array.isArray(data.intimacy))throw new Error('Неверная структура: нет intimacy');
+      
+      // Подтверждение
+      if(!confirm('Заменить все текущие данные импортированными? Это действие нельзя отменить.'))return;
+      
+      // Импорт
+      DB=data;
+      save();
+      toast('Данные импортированы ✅');
+      haptic('ok');
+      closeSheet();
+      setTab('today');
+    }catch(err){
+      toast('Ошибка импорта: '+err.message);
+      haptic('err');
+    }
+  };
+  reader.onerror=function(){
+    toast('Не удалось прочитать файл');
+    haptic('err');
+  };
+  reader.readAsText(file);
+}
 function addPartner(raw,silent){
   try{
     var s=String(raw).trim(),i=s.indexOf('#p=');if(i>=0)s=s.slice(i+3);
@@ -1051,8 +1091,7 @@ function renderMore(){
    '<div class="prow"><b>Отмечено окончаний</b><span>'+DB.periods.filter(function(p){return p.end;}).length+'</span></div>'+
    '<div class="prow"><b>Дней самочувствия</b><span>'+Object.keys(DB.logs).length+'</span></div>'+
    '<div class="prow"><b>Интимных записей</b><span>'+DB.intimacy.length+' · на устройстве</span></div>'+
-   '<div style="height:11px"></div><div class="row"><button class="btn btn-s btn-sm" data-a="export">📥 Экспорт</button>'+
-   '<button class="btn btn-g btn-sm" data-a="privacy">Приватность</button></div>'+
+   '<div style="height:11px"></div><div class="row"><button class="btn btn-s btn-sm" data-a="export">📥 Экспорт</button><button class="btn btn-s btn-sm" data-a="import">📤 Импорт</button></div><div style="height:9px"></div><button class="btn btn-g btn-sm" data-a="privacy">Приватность</button>'+
    '<div style="height:9px"></div><button class="btn btn-d btn-sm" data-a="reset">🗑 Сбросить все данные</button></div>';
   h+='<div class="card"><p class="tiny">Bloom v3 · цикл и близость<br>Данные хранятся только на твоём устройстве. Прогнозы справочные и не заменяют консультацию врача.</p></div>';
   $('#t-more').innerHTML=h;
@@ -1560,6 +1599,8 @@ document.addEventListener('click',function(ev){
      DB.settings.ringFit=64+Math.floor(Math.random()*30);
      save();applyLook();renderMore();RING.size=0;scheduleRing();toast('Новое настроение 🎲');break;
    /* данные */
+   case 'import': openImport();break;
+   case 'choosefile': document.getElementById('importfile').click();break;
    case 'export': openExport();break;
    case 'sharefile': {
   var data=JSON.stringify(DB,null,2),file=new File([data],'bloom-data.json',{type:'application/json'});
@@ -1593,6 +1634,11 @@ case 'copyfile': copyTxt(JSON.stringify(DB,null,2),'JSON скопирован �
      $('#ob').classList.remove('on');applyLook();setTab('today');toast('Добро пожаловать в Bloom 🌸');haptic('ok');break;}
    case 'undo': if(UI.undo){UI.undo();UI.undo=null;toast('Восстановлено ↩');haptic('ok');}break;
   }
+});
+document.getElementById('importfile').addEventListener('change',function(e){
+  var file=e.target.files[0];
+  if(file)importData(file);
+  e.target.value=''; // Сброс для повторного выбора того же файла
 });
 document.addEventListener('input',function(ev){
   var el=ev.target.closest('[data-in]');if(!el)return;

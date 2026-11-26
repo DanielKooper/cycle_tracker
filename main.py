@@ -414,7 +414,9 @@ def api_telegram():
     except Exception as e:
         app.logger.error("webhook: %s", e)
     return "ok"
-
+if (msg.get("web_app_data") or {}).get("data"):
+    raw = json.loads(msg["web_app_data"]["data"])
+    # raw["data"] — JSON экспорта, отправляем как документ через sendDocument
 
 def send(chat_id, text, reply_markup=None):
     payload = {"chat_id": chat_id, "text": text, "parse_mode": "HTML"}
