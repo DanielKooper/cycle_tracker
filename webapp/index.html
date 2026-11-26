@@ -873,22 +873,51 @@ function copyTxt(txt,msg){
   if(navigator.clipboard&&navigator.clipboard.writeText)navigator.clipboard.writeText(txt).then(done).catch(fb);else fb();
 }
 function doDownload(data){
+  // Попытка 1: navigator.share с файлом (iOS Safari, Android Chrome)
   try{
-    var b=new Blob([data],{type:'application/json'}),u=URL.createObjectURL(b),link=document.createElement('a');
-    link.href=u;link.download='bloom-data.json';
-    document.body.appendChild(link);link.click();document.body.removeChild(link);
-    setTimeout(function(){URL.revokeObjectURL(u);},4000);
-    toast('Скачано — проверь «Загрузки» 📥');haptic('ok');
-  }catch(e){copyTxt(data,'Не удалось скачать. Текст скопирован 📋');}
+    var file=new File([data],'bloom-data.json',{type:'application/json'});
+    if(navigator.canShare&&navigator.canShare({files:[file]})){
+      navigator.share({files:[file],title:'Bloom export',text:'Мои данные цикла'}).then(function(){
+        toast('Файл отправлен 📥');haptic('ok');
+      }).catch(function(e){
+        if(e&&e.name!=='AbortError')doShareText(data);
+      });
+      return;
+    }
+  }catch(e){}
+  
+  // Попытка 2: navigator.share с текстом (работает почти везде)
+  doShareText(data);
 }
+
+function doShareText(data){
+  try{
+    if(navigator.share){
+      navigator.share({title:'Bloom export',text:data}).then(function(){
+        toast('Текст отправлен 📋');haptic('ok');
+      }).catch(function(e){
+        if(e&&e.name!=='AbortError')doCopyFallback(data);
+      });
+      return;
+    }
+  }catch(e){}
+  
+  // Попытка 3: копирование в буфер
+  doCopyFallback(data);
+}
+
+function doCopyFallback(data){
+  copyTxt(data,'JSON скопирован 📋 Вставь в заметки и сохрани как bloom-data.json');
+}
+
 function openExport(){
   var data=JSON.stringify(DB,null,2),size=(new Blob([data]).size/1024).toFixed(1)+' KB';
   var h=head('📥 Экспорт данных');
-  h+='<p class="muted" style="margin-bottom:13px">Полная копия записей: циклы, самочувствие, близость, заметки. Файл <b>bloom-data.json</b> ('+size+'). На другом устройстве загрузи его через импорт, чтобы восстановить всё.</p>';
-  h+='<button class="btn btn-p" data-a="sharefile">📤 Поделиться / Сохранить в Файлы</button><div style="height:9px"></div>';
-  h+='<button class="btn btn-s" data-a="downloadfile">⬇️ Скачать (лучше на ПК)</button><div style="height:9px"></div>';
-  h+='<button class="btn btn-g" data-a="copyfile">📋 Скопировать текст в буфер</button>';
-  h+='<p class="tiny" style="margin-top:12px">На телефоне выбирай «Поделиться» — в меню есть «Сохранить в Файлы». «Скачать» в WebApp часто молча не работает, поэтому и дан выбор.</p>';
+  h+='<p class="muted" style="margin-bottom:13px">Полная копия записей: циклы, самочувствие, близость, заметки. Размер: <b>'+size+'</b>. На другом устройстве загрузи через импорт.</p>';
+  h+='<button class="btn btn-p" data-a="sharefile">📤 Поделиться (рекомендуется)</button>';
+  h+='<div style="height:9px"></div>';
+  h+='<button class="btn btn-s" data-a="copyfile">📋 Скопировать текст</button>';
+  h+='<p class="tiny" style="margin-top:12px">На телефоне «Поделиться» откроет системное меню — выбери «Сохранить в Файлы» или отправь себе в Telegram. Если не работает — «Скопировать текст» и вставь в заметки.</p>';
   openSheet(h);
 }
 function openImport(){
