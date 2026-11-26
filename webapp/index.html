@@ -1324,22 +1324,51 @@ function celebrate(){
 function pdfReport(){
   if(!has('pdf')){openPlus();return;}
   var st=myStats();
-  var rows=st.list.map(function(p){var d=parse(p.start),L=pLen(p,DB.settings.periodLen);
-    return '<tr><td>'+fNice(d)+' '+d.getFullYear()+'</td><td>'+(p.end?fNice(parse(p.end))+' '+parse(p.end).getFullYear():'—')+'</td><td>'+L+'</td><td>'+(p.end?'отмечено':'оценка')+'</td></tr>';}).join('');
-  var logs=Object.keys(DB.logs).sort().slice(-30).map(function(d){var l=DB.logs[d];
+  var rows=st.list.map(function(p){
+    var d=parse(p.start),L=pLen(p,DB.settings.periodLen);
+    return '<tr><td>'+fNice(d)+' '+d.getFullYear()+'</td><td>'+(p.end?fNice(parse(p.end))+' '+parse(p.end).getFullYear():'—')+'</td><td>'+L+'</td><td>'+(p.end?'отмечено':'оценка')+'</td></tr>';
+  }).join('');
+  var logs=Object.keys(DB.logs).sort().slice(-30).map(function(d){
+    var l=DB.logs[d];
     var s=(l.syms||[]).map(function(k){var f=SYM.filter(function(x){return x[0]===k;})[0];return f?f[1]:k;}).join(', ');
-    return '<tr><td>'+fNice(parse(d))+'</td><td>'+['—','слабые','средние','сильные'][l.flow||0]+'</td><td>'+esc(s)+'</td><td>'+esc(l.note||'')+'</td></tr>';}).join('');
+    return '<tr><td>'+fNice(parse(d))+'</td><td>'+['—','слабые','средние','сильные'][l.flow||0]+'</td><td>'+esc(s)+'</td><td>'+esc(l.note||'')+'</td></tr>';
+  }).join('');
   var html='<!DOCTYPE html><html lang="ru"><head><meta charset="utf-8"><title>Bloom — отчёт</title>'+
-   '<style>body{font-family:Arial,sans-serif;padding:32px;color:#333}h1{color:#E8336F;margin:0 0 6px}h3{margin:18px 0 4px}'+
-   'table{width:100%;border-collapse:collapse;margin:8px 0 22px}td,th{border:1px solid #e6d7de;padding:8px;font-size:13px;text-align:left}th{background:#FFE4EC}</style></head><body>'+
-   '<h1>Bloom — отчёт о цикле</h1><p>Дата: '+fFull(today())+' · Средний цикл: '+st.avgC+' дн · Менструация: '+st.avgP+' дн (подтверждено '+st.confirmed+')</p>'+
-   '<h3>Циклы</h3><table><tr><th>Начало</th><th>Окончание</th><th>Дней</th><th>Источник</th></tr>'+rows+'</table>'+
-   '<h3>Дневник самочувствия (30 записей)</h3><table><tr><th>Дата</th><th>Выделения</th><th>Симптомы</th><th>Заметка</th></tr>'+logs+'</table>'+
-   '<p style="color:#999;font-size:11px">Интимные записи в отчёт не включены. Сформировано Bloom. Не является медицинским заключением.</p>'+
-   '<script>window.print()<\/script></body></html>';
-  var w=window.open('','_blank');
-  if(w){w.document.write(html);w.document.close();toast('Выбери «Сохранить как PDF» 🖨');}
-  else copyTxt('Bloom — отчёт '+fFull(today())+'\nСредний цикл: '+st.avgC+' дн\n\n'+st.list.map(function(p){return p.start+' → '+(p.end||'?')+' ('+pLen(p,DB.settings.periodLen)+' дн)';}).join('\n'),'Отчёт скопирован текстом 📋');
+    '<style>body{font-family:Arial,sans-serif;padding:32px;color:#333}h1{color:#E8336F;margin:0 0 6px}h3{margin:18px 0 4px}'+
+    'table{width:100%;border-collapse:collapse;margin:8px 0 22px}td,th{border:1px solid #e6d7de;padding:8px;font-size:13px;text-align:left}th{background:#FFE4EC}</style></head><body>'+
+    '<h1>Bloom — отчёт о цикле</h1><p>Дата: '+fFull(today())+' · Средний цикл: '+st.avgC+' дн · Менструация: '+st.avgP+' дн (подтверждено '+st.confirmed+')</p>'+
+    '<h3>Циклы</h3><table><tr><th>Начало</th><th>Окончание</th><th>Дней</th><th>Источник</th></tr>'+rows+'</table>'+
+    '<h3>Дневник самочувствия (30 записей)</h3><table><tr><th>Дата</th><th>Выделения</th><th>Симптомы</th><th>Заметка</th></tr>'+logs+'</table>'+
+    '<p style="color:#999;font-size:11px">Интимные записи в отчёт не включены. Сформировано Bloom. Не является медицинским заключением.</p></body></html>';
+  
+  // Создаём скрытый iframe для печати
+  var iframe=document.createElement('iframe');
+  iframe.style.position='fixed';
+  iframe.style.right='0';
+  iframe.style.bottom='0';
+  iframe.style.width='0';
+  iframe.style.height='0';
+  iframe.style.border='0';
+  document.body.appendChild(iframe);
+  
+  var doc=iframe.contentWindow.document;
+  doc.open();
+  doc.write(html);
+  doc.close();
+  
+  // Ждём загрузки и печатаем
+  iframe.onload=function(){
+    try{
+      iframe.contentWindow.focus();
+      iframe.contentWindow.print();
+      toast('Выбери «Сохранить как PDF» 🖨');
+    }catch(e){
+      // Fallback: копируем текст
+      copyTxt('Bloom — отчёт '+fFull(today())+'\nСредний цикл: '+st.avgC+' дн\n\n'+st.list.map(function(p){return p.start+' → '+(p.end||'?')+' ('+pLen(p,DB.settings.periodLen)+' дн)';}).join('\n'),'Отчёт скопирован текстом 📋');
+    }
+    // Удаляем iframe через 2 секунды
+    setTimeout(function(){if(iframe.parentNode)iframe.parentNode.removeChild(iframe);},2000);
+  };
 }
 
 /* ═══════════ ВИД / НАВИГАЦИЯ ═══════════ */
