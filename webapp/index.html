@@ -870,6 +870,25 @@ function copyTxt(txt,msg){
     try{document.execCommand('copy');done();}catch(e){toast('Не удалось скопировать');}document.body.removeChild(ta);};
   if(navigator.clipboard&&navigator.clipboard.writeText)navigator.clipboard.writeText(txt).then(done).catch(fb);else fb();
 }
+function doDownload(data){
+  try{
+    var b=new Blob([data],{type:'application/json'}),u=URL.createObjectURL(b),link=document.createElement('a');
+    link.href=u;link.download='bloom-data.json';
+    document.body.appendChild(link);link.click();document.body.removeChild(link);
+    setTimeout(function(){URL.revokeObjectURL(u);},4000);
+    toast('Скачано — проверь «Загрузки» 📥');haptic('ok');
+  }catch(e){copyTxt(data,'Не удалось скачать. Текст скопирован 📋');}
+}
+function openExport(){
+  var data=JSON.stringify(DB,null,2),size=(new Blob([data]).size/1024).toFixed(1)+' KB';
+  var h=head('📥 Экспорт данных');
+  h+='<p class="muted" style="margin-bottom:13px">Полная копия записей: циклы, самочувствие, близость, заметки. Файл <b>bloom-data.json</b> ('+size+'). На другом устройстве загрузи его через импорт, чтобы восстановить всё.</p>';
+  h+='<button class="btn btn-p" data-a="sharefile">📤 Поделиться / Сохранить в Файлы</button><div style="height:9px"></div>';
+  h+='<button class="btn btn-s" data-a="downloadfile">⬇️ Скачать (лучше на ПК)</button><div style="height:9px"></div>';
+  h+='<button class="btn btn-g" data-a="copyfile">📋 Скопировать текст в буфер</button>';
+  h+='<p class="tiny" style="margin-top:12px">На телефоне выбирай «Поделиться» — в меню есть «Сохранить в Файлы». «Скачать» в WebApp часто молча не работает, поэтому и дан выбор.</p>';
+  openSheet(h);
+}
 function addPartner(raw,silent){
   try{
     var s=String(raw).trim(),i=s.indexOf('#p=');if(i>=0)s=s.slice(i+3);
@@ -1541,10 +1560,15 @@ document.addEventListener('click',function(ev){
      DB.settings.ringFit=64+Math.floor(Math.random()*30);
      save();applyLook();renderMore();RING.size=0;scheduleRing();toast('Новое настроение 🎲');break;
    /* данные */
-   case 'export': {var data=JSON.stringify(DB,null,2);
-     try{var b=new Blob([data],{type:'application/json'}),u=URL.createObjectURL(b),link=document.createElement('a');
-       link.href=u;link.download='bloom-data.json';link.click();setTimeout(function(){URL.revokeObjectURL(u);},3000);toast('Файл сохранён 📥');}
-     catch(err){copyTxt(data,'Данные скопированы 📋');}break;}
+   case 'export': openExport();break;
+   case 'sharefile': {
+  var data=JSON.stringify(DB,null,2),file=new File([data],'bloom-data.json',{type:'application/json'});
+  if(navigator.canShare&&navigator.canShare({files:[file]})){
+    navigator.share({files:[file],title:'Bloom export',text:'Мои данные цикла'}).then(function(){toast('Файл отправлен 📥');haptic('ok');}).catch(function(e){if(e&&e.name!=='AbortError')doDownload(data);});
+  } else doDownload(data);
+  break;}
+case 'downloadfile': doDownload(JSON.stringify(DB,null,2));break;
+case 'copyfile': copyTxt(JSON.stringify(DB,null,2),'JSON скопирован 📋 Вставь в заметки и сохрани как файл');break; 
    case 'reset': openConfirm('reset');break;
    case 'confyes': {var c=UI.confirm;closeSheet();if(!c)break;
      if(c.kind==='reset'){try{localStorage.removeItem(LS);localStorage.removeItem('bloom_v2');}catch(err){}
