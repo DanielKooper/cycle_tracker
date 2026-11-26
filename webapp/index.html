@@ -1496,6 +1496,8 @@ document.addEventListener('click',function(ev){
   var a=el.getAttribute('data-a'),v=el.getAttribute('data-v'),d=el.getAttribute('data-d'),id=el.getAttribute('data-id');
   if(a!=='undo')haptic('light');
   switch(a){
+   case 'sharefile': doDownload(JSON.stringify(DB,null,2));break;
+   case 'copyfile': doCopyFallback(JSON.stringify(DB,null,2));break;
    case 'go': setTab(el.getAttribute('data-tab'));break;
    case 'close': closeSheet();break;
    case 'day': openDay(d);break;
